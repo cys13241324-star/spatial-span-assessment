@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>역량검사 프로토타입 — 도형 순서 기억</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">역량검사 <em>프로토타입</em></span>
+  </div>
+  <div class="topbar-meta">
+    <span id="taskLabel">도형 순서 기억 · Corsi Block-Tapping</span>
+    <span class="sep">·</span>
+    <span id="sessionLabel">—</span>
+  </div>
+</header>
+
+<main id="stage">
+
+  <!-- ===== 1. 사전고지 / 동의 ===== -->
+  <section class="screen active" id="screen-consent">
+    <div class="card">
+      <p class="eyebrow">응시 전 고지</p>
+      <h1>이 검사가 무엇을 측정하는지 먼저 알려드립니다</h1>
+
+      <div class="notice-grid">
+        <div class="notice">
+          <h3>측정 대상</h3>
+          <p><strong>시공간 작업기억 용량(visuospatial working memory span)</strong>을 측정합니다. 화면에 제시된 도형의 점등 순서를 그대로 재현하는 과제입니다.</p>
+        </div>
+        <div class="notice">
+          <h3>채점 방식</h3>
+          <p>정답으로 재현한 가장 긴 순서의 길이(<strong>Corsi Span</strong>)와 정답 시행 수를 조합해 산출합니다. 점수 공식은 결과 화면에서 전부 공개됩니다.</p>
+        </div>
+        <div class="notice">
+          <h3>수집 정보</h3>
+          <p>시행별 응답·정오·반응시간, 그리고 반응시간 보정을 위한 기기/브라우저 정보를 수집합니다. <strong>영상·음성·생체정보는 수집하지 않습니다.</strong></p>
+        </div>
+        <div class="notice">
+          <h3>귀하의 권리</h3>
+          <p>이 결과만으로 자동 결정이 이루어지는 경우, 귀하는 그 결정을 <strong>거부하고 설명을 요구</strong>할 수 있으며 <strong>사람에 의한 재검토</strong>를 요청할 수 있습니다. (개인정보보호법 §37조의2)</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <strong>프로토타입 고지</strong> — 이 빌드는 규준(norm) 표본이 확보되지 않았습니다. 따라서 백분위·등급은 산출되지 않으며 원점수만 표시됩니다. 선발 판단 근거로 사용할 수 없습니다.
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="agree">
+        <span>위 내용을 확인했으며, 위 범위의 정보 수집에 동의합니다.</span>
+      </label>
+
+      <div class="actions">
+        <button class="btn primary" id="btnToTutorial" disabled>다음</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 2. 튜토리얼 ===== -->
+  <section class="screen" id="screen-tutorial">
+    <div class="card">
+      <p class="eyebrow">과제 설명</p>
+      <h1>점등된 순서대로, 같은 순서로 누르세요</h1>
+      <ol class="steps">
+        <li><span class="num">1</span><div><h3>관찰</h3><p>9개 도형 중 일부가 하나씩 차례로 점등됩니다. 순서를 기억하세요.</p></div></li>
+        <li><span class="num">2</span><div><h3>재현</h3><p>점등이 끝나면 테두리가 밝아집니다. 그때부터 <strong>점등된 순서대로</strong> 도형을 클릭하세요.</p></div></li>
+        <li><span class="num">3</span><div><h3>수정</h3><p>잘못 눌렀으면 <strong>Backspace</strong> 또는 <strong>취소 버튼</strong>으로 마지막 입력을 되돌릴 수 있습니다. 본 검사에서는 <strong>시행당 1회, 누른 직후 2초 안에만</strong> 가능합니다.</p></div></li>
+        <li><span class="num">4</span><div><h3>증가</h3><p>맞히면 순서가 한 칸 길어집니다. 한 단계에서 두 번 모두 틀리면 종료됩니다.</p></div></li>
+      </ol>
+      <div class="callout">
+        먼저 <strong>연습 2회</strong>를 진행합니다. 연습은 채점에 반영되지 않으며 정답 여부를 알려드립니다. 본 시행에서는 정답 여부를 알려드리지 않습니다.
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-goto="screen-consent">이전</button>
+        <button class="btn primary" id="btnToPractice">연습 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. 과제 실행 ===== -->
+  <section class="screen" id="screen-task">
+    <div class="task-wrap">
+      <div class="task-head">
+        <div class="phase-badge" id="phaseBadge">연습</div>
+        <div class="task-status" id="taskStatus">준비 중…</div>
+        <div class="task-progress">
+          <span id="spanLevel">순서 길이 —</span>
+          <span class="sep">·</span>
+          <span id="trialCounter">시행 —</span>
+        </div>
+      </div>
+
+      <div class="board" id="board" aria-label="도형 판"></div>
+
+      <div class="task-foot">
+        <div class="pips" id="pips"></div>
+
+        <div class="input-controls" id="inputControls" hidden>
+          <button class="btn small" id="btnUndo" disabled>
+            <span class="kbd">Backspace</span> 마지막 입력 취소
+          </button>
+          <button class="btn small primary" id="btnSubmit" hidden>확정</button>
+          <span class="control-note" id="undoNote"></span>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3-b. 본 검사 시작 확인 ===== -->
+  <section class="screen" id="screen-ready">
+    <div class="card">
+      <p class="eyebrow">연습 종료</p>
+      <h1>이제 본 검사를 시작합니다</h1>
+      <div class="callout">
+        본 검사에서는 <strong>정답 여부를 알려드리지 않습니다.</strong> 순서를 맞히면 길이가 한 칸 늘어나고,
+        한 단계에서 두 번 모두 틀리면 검사가 종료됩니다. 중간에 창을 벗어나면 기록에 남습니다.
+      </div>
+      <div class="callout warn">
+        연습과 달리 <strong>오입력 수정은 시행당 1회, 마지막 입력 후 2초 이내</strong>로 제한됩니다.
+        모든 수정은 발생 시각과 함께 기록되어 결과에 표시됩니다.
+      </div>
+      <p>준비되셨으면 시작을 누르세요. 시작 후에는 중단할 수 없습니다.</p>
+      <div class="actions">
+        <button class="btn primary" id="btnToLive">본 검사 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. 리포트 ===== -->
+  <section class="screen" id="screen-report">
+    <div class="card wide" id="reportBody"></div>
+  </section>
+
+  <!-- ===== 5. 설명 (§37조의2) ===== -->
+  <section class="screen" id="screen-explain">
+    <div class="card wide" id="explainBody"></div>
+  </section>
+
+</main>
+
+<script src="js/core.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/task-spatial-span.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
