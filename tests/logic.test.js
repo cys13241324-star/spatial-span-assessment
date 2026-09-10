@@ -17,6 +17,7 @@ window.innerWidth = 1600; window.innerHeight = 900; window.devicePixelRatio = 1;
 
 function load(f) { eval(fs.readFileSync(path.join(ROOT, f), 'utf8')); }
 load('js/core.js');
+load('js/tasks.js');
 load('js/scoring.js');
 
 let pass = 0, fail = 0;

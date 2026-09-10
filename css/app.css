@@ -514,6 +514,133 @@ td .tag.err { color: var(--err); }
 
 .chip.flag { border-color: rgba(210,153,34,.4); color: #e3b341; background: rgba(210,153,34,.08); }
 
+/* ============================================================
+   과제 선택
+   ============================================================ */
+.picklist { display: grid; gap: 10px; margin-top: 1.4rem; }
+
+.pick {
+  font: inherit;
+  text-align: left;
+  display: block;
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.pick:hover { background: var(--panel-2); border-color: var(--accent-dim); transform: translateY(-1px); }
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pick-label { display: block; font-weight: 620; color: var(--ink); margin-bottom: 3px; }
+.pick-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: .01em;
+}
+
+/* ---------- 키 표기 ---------- */
+kbd {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: 1px;
+}
+
+/* ============================================================
+   도형 N-back
+   ============================================================ */
+.nb { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+
+.nb-rule {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+  text-align: center;
+  min-height: 22px;
+}
+.nb-rule b { color: var(--ink); font-weight: 620; }
+
+/* 카드 더미 — 뒤 카드 두 장이 살짝 보이고 앞 카드만 갱신된다 */
+.nb-stack {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  aspect-ratio: 3 / 4;
+}
+
+.nb-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.nb-card.nb-b2 { transform: translate(10px, 10px) rotate(2.5deg); opacity: .35; }
+.nb-card.nb-b1 { transform: translate(5px, 5px) rotate(1.2deg); opacity: .6; }
+
+.nb-card.nb-top {
+  display: grid;
+  place-items: center;
+  background: var(--bg-soft);
+  border-color: var(--line);
+  box-shadow: 0 10px 30px rgba(0,0,0,.28);
+}
+
+.nb-card.nb-top svg { width: 46%; height: 46%; }
+.nb-card.nb-top svg polygon,
+.nb-card.nb-top svg path { fill: var(--lit); }
+
+.nb-flip { animation: nbflip .18s ease-out; }
+@keyframes nbflip {
+  from { transform: scale(.94); opacity: .35; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* 응답 키 */
+.nb-keys {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.nb-key {
+  font: inherit;
+  flex: 1 1 130px;
+  max-width: 190px;
+  padding: 11px 12px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+  transition: background .12s, border-color .12s, transform .1s;
+}
+.nb-key:hover { background: #2b3543; }
+.nb-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nb-key.nb-hit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1220;
+  transform: translateY(1px);
+}
+
+.nb-key b { display: block; font-family: var(--mono); font-size: 16px; font-weight: 600; }
+.nb-key span { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+.nb-key.nb-hit span { color: rgba(11,18,32,.7); }
+
 /* ---------- 반응형 ---------- */
 @media (max-width: 620px) {
   #stage { padding: 20px 16px 48px; }

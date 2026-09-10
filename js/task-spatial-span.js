@@ -455,4 +455,169 @@
   };
 
   global.SpatialSpanTask = SpatialSpanTask;
+
+  /* ============================================================
+     레지스트리 등록
+     ============================================================ */
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function ms(v) { return v == null ? '—' : v.toLocaleString() + ' ms'; }
+  function seqStr(arr) { return arr.map(function (v) { return v + 1; }).join(' → '); }
+
+  global.Tasks.register({
+    id: 'spatial-span',
+    label: '도형 순서 기억 (Corsi span)',
+    subtitle: 'Corsi Block-Tapping · 시공간 작업기억 span',
+
+    consent: {
+      measures: '<strong>시공간 작업기억 용량(span)</strong>을 측정합니다. 화면에 제시된 도형의 ' +
+                '점등 순서를 그대로 재현하는 과제입니다.',
+      scoring: '정답으로 재현한 가장 긴 순서의 길이(<strong>Corsi Span</strong>)와 정답 시행 수를 ' +
+               '조합해 산출합니다. 점수 공식은 결과 화면에서 전부 공개됩니다.',
+      collects: '시행별 응답·정오·반응시간, 그리고 반응시간 보정을 위한 기기/브라우저 정보를 ' +
+                '수집합니다. <strong>영상·음성·생체정보는 수집하지 않습니다.</strong>'
+    },
+
+    brief: [
+      { h: '관찰', p: '9개 도형 중 일부가 하나씩 차례로 점등됩니다. 순서를 기억하세요.' },
+      { h: '재현', p: '점등이 끝나면 테두리가 밝아집니다. 그때부터 <strong>점등된 순서대로</strong> 도형을 클릭하세요.' },
+      { h: '수정', p: '잘못 눌렀으면 <kbd>Backspace</kbd> 또는 취소 버튼으로 마지막 입력을 되돌릴 수 있습니다. 본 검사에서는 <strong>시행당 1회, 누른 직후 2초 안에만</strong> 가능합니다.' },
+      { h: '증가', p: '맞히면 순서가 한 칸 길어집니다. 한 단계에서 두 번 모두 틀리면 종료됩니다.' }
+    ],
+
+    readyNote: '연습과 달리 <strong>오입력 수정은 시행당 1회, 마지막 입력 후 2초 이내</strong>로 제한됩니다. ' +
+               '모든 수정은 발생 시각과 함께 기록되어 결과에 표시됩니다.',
+
+    create: function (o) {
+      /* 이 과제는 9칸 판을 쓰므로 무대 안에 자기 판을 만든다 */
+      o.stage.innerHTML = '<div class="board" id="board" aria-label="도형 판"></div>';
+      return new SpatialSpanTask({
+        board: o.stage.querySelector('#board'),
+        rng: o.rng,
+        phase: o.phase,
+        onTrial: o.onTrial,
+        onStatus: o.onStatus
+      });
+    },
+
+    score: function (liveTrials) { return Scoring.spatialSpan(liveTrials); },
+    normKey: function (s) { return s.totalScore; },
+
+    tiles: function (s) {
+      return [
+        { label: 'Corsi Span', value: s.corsiSpan, unit: '개', hint: '정답 재현한 가장 긴 순서' },
+        { label: '정답 시행', value: s.correctTrials + ' / ' + s.totalTrials, unit: '', hint: '본 시행 기준' },
+        { label: 'Total Score', value: s.totalScore, unit: '', hint: 'Span × 정답 시행 수' },
+        { label: '평균 반응시간',
+          value: s.meanRtTotalMs == null ? '—' : s.meanRtTotalMs.toLocaleString(),
+          unit: 'ms', hint: '정답 시행 평균 · 보조 지표' }
+      ];
+    },
+
+    sections: function (ctx) {
+      var s = ctx.score, err = ctx.errorProfile, corr = ctx.corrections;
+      var html = '';
+
+      html += '<h2>단계별 성적</h2>';
+      html += '<div class="table-scroll"><table><thead><tr>' +
+              '<th>순서 길이</th><th>시행</th><th>정답</th><th>정확도</th><th>평균 반응시간</th>' +
+              '</tr></thead><tbody>';
+      s.byLevel.forEach(function (l) {
+        html += '<tr><td>' + l.level + '</td><td>' + l.attempts + '</td><td>' + l.correct + '</td>' +
+                '<td>' + Math.round(l.accuracy * 100) + '%</td><td>' + ms(l.meanRtMs) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+
+      html += '<h2>오류 유형</h2>';
+      html += '<p>타당도 연구에서 순서 오류와 위치 오류는 서로 다른 처리 과정을 반영합니다. ' +
+              '프로토타입 단계부터 분리 집계합니다.</p>';
+      html += '<div class="integrity">' +
+              '<span class="chip">순서 오류 ' + err.orderErrors + '건</span>' +
+              '<span class="chip">위치 오류 ' + err.itemErrors + '건</span>' +
+              '<span class="chip">누락 ' + err.omissions + '건</span>' +
+              '</div>';
+
+      html += '<h2>오입력 수정</h2>';
+      html += '<p>취소 직후 경과시간이 짧으면 손 실수, 길면 기억이 불확실해 망설인 것으로 봅니다. ' +
+              '후자가 잦은 응시자는 취소 기능의 도움을 받은 점수이므로 타당도 분석에서 별도 취급합니다.</p>';
+      html += '<div class="integrity">' +
+              '<span class="chip">수정 발생 시행 ' + corr.trialsWithUndo + '건</span>' +
+              '<span class="chip">총 취소 ' + corr.totalUndos + '회</span>' +
+              '<span class="chip">손 실수 추정 ' + corr.slips + '회</span>' +
+              '<span class="chip' + (corr.deliberations > 2 ? ' flag' : '') + '">망설임 추정 ' + corr.deliberations + '회</span>' +
+              (corr.timedOutTrials > 0 ? '<span class="chip flag">시간 초과 ' + corr.timedOutTrials + '시행</span>' : '') +
+              '</div>';
+
+      return html;
+    },
+
+    logTable: function (ctx) {
+      var html = '';
+      html += '<h2>시행 원시 로그 (본 시행)</h2>';
+      html += '<p>이 로그가 타당도 검증·규준 수집·사후 재채점의 근거 자료입니다. ' +
+              '시드(<code>' + esc(ctx.session.seed) + '</code>)만으로 전 시행의 자극을 재현할 수 있습니다.</p>';
+      html += '<div class="table-scroll"><table><thead><tr>' +
+              '<th>#</th><th>길이</th><th>자극</th><th>응답</th><th>정오</th>' +
+              '<th>수정</th><th>첫 반응</th><th>총 반응</th>' +
+              '</tr></thead><tbody>';
+
+      ctx.liveTrials.forEach(function (t, i) {
+        var verdict = t.timedOut
+          ? '<span class="tag err">시간초과</span>'
+          : '<span class="tag ' + (t.correct ? 'ok">정답' : 'err">오답') + '</span>';
+
+        var undoCell = '—';
+        if (t.undoCount) {
+          var slip = (t.undos || []).every(function (u) { return u.sinceTapMs <= 800; });
+          undoCell = t.undoCount + '회 <span class="tag ' + (slip ? 'ok' : 'err') + '">' +
+                     (slip ? '실수' : '망설임') + '</span>';
+        }
+
+        html += '<tr><td>' + (i + 1) + '</td><td>' + t.difficulty + '</td>' +
+                '<td class="seq">' + seqStr(t.stimulus) + '</td>' +
+                '<td class="seq">' + (t.response.length ? seqStr(t.response) : '—') + '</td>' +
+                '<td>' + verdict + '</td><td>' + undoCell + '</td>' +
+                '<td>' + ms(t.rtFirstMs) + '</td><td>' + ms(t.rtTotalMs) + '</td></tr>';
+      });
+
+      html += '</tbody></table></div>';
+      return html;
+    },
+
+    explain: function (ctx) {
+      var s = ctx.score;
+      return {
+        measures: '<strong>시공간 작업기억 용량</strong>을 측정했습니다. 사용한 절차는 Corsi Block-Tapping Test' +
+                  '이며, 채점 규칙은 Kessels et al.(2000)을 따릅니다. 9개 도형을 불규칙하게 배치한 것은 ' +
+                  '격자 배치가 위치를 언어적으로 부호화하게 만들어 측정 대상을 오염시키기 때문입니다.',
+        procedure:
+          '순서 길이 <b>2</b>에서 시작\n' +
+          '각 길이에서 <b>2회</b> 시행\n' +
+          '  ├ 1회 이상 정답 → 길이 +1 후 계속\n' +
+          '  └ 2회 모두 오답 → 종료\n' +
+          '자극 제시: 도형당 <b>1,000ms</b> 점등, 간격 <b>500ms</b>\n' +
+          '본 시행에서는 정답 여부를 알려주지 않음 (표준 비피드백 절차)\n\n' +
+          '오입력 수정: 시행당 <b>1회</b>, 마지막 입력 후 <b>2초</b> 이내\n' +
+          '입력 완료 후 <b>2초</b>의 확정 유예 (그 사이 취소 가능, 이후 자동 확정)\n' +
+          '무응답 상한: <b>8초 + 순서당 2.5초</b> (초과 시 미완성으로 기록)',
+        formula:
+          'Corsi Span  = 정답으로 재현한 가장 긴 순서의 길이\n' +
+          '            = <b>' + s.corsiSpan + '</b>\n\n' +
+          '정답 시행 수 = <b>' + s.correctTrials + '</b>  (전체 ' + s.totalTrials + '시행 중)\n\n' +
+          'Total Score = Corsi Span × 정답 시행 수\n' +
+          '            = ' + s.corsiSpan + ' × ' + s.correctTrials + '\n' +
+          '            = <b>' + s.totalScore + '</b>',
+        rtNote: '반응시간(' + ms(s.meanRtTotalMs) + ')은 <strong>점수에 반영되지 않았습니다.</strong> ' +
+                '브라우저·기기별로 반응시간 측정에 계통 오차가 존재한다는 것이 선행 연구에서 확인되었기 ' +
+                '때문에, 보정 근거가 확보되기 전까지 참고 지표로만 보고합니다.',
+        extraRows: [
+          ['시행 로그', ctx.liveTrials.length + '건 (자극·응답·정오·반응시간)', '채점 · 타당도 검증'],
+          ['오입력 수정 내역', ctx.corrections.totalUndos + '회 (발생 시각·직전 입력 경과시간)', '실수 / 망설임 구분']
+        ]
+      };
+    }
+  });
 })(window);
