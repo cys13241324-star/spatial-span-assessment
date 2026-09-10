@@ -129,6 +129,24 @@ console.log('\n[5] 식별자 마스킹');
   check('지역 마스킹', !m.text.includes('부산'));
   check('마스킹 건수 집계', m.total >= 6, String(m.total));
   check('이름이 없으면 이름 마스킹 안 함', Transcript.mask('오늘 회의에서 발표했습니다').total === 0);
+
+  /* 접미사 없는 회사·학교 — 테스트가 잡아낸 구멍의 회귀 방지 */
+  const bare = Transcript.mask('카이스트를 나와 네이버에서 2년, 카카오에서 1년 일했고 연대 대학원도 다녔습니다.');
+  check('접미사 없는 회사명(네이버·카카오) 마스킹', !/네이버|카카오/.test(bare.text), bare.text);
+  check('학교 약칭(카이스트·연대) 마스킹', !/카이스트|연대/.test(bare.text), bare.text);
+  const common = Transcript.mask('당근을 썰어 국을 끓였고, 메타인지를 키우려 가이드라인을 읽었습니다');
+  check('일반 단어(당근·메타인지·가이드라인)는 마스킹하지 않음', common.total === 0, common.text);
+  check('긴 형태(당근마켓)는 마스킹', !/당근마켓/.test(Transcript.mask('당근마켓에서 일했습니다').text));
+
+  /* 조사 보존 — "(주)X에서"의 조사가 남아야 이름만 다른 두 답변이 마스킹 후 같아진다 (편향 테스트가 잡은 결함) */
+  check('(주)회사명 뒤 조사 보존', Transcript.mask('(주)작은회사에서 일했습니다').text === '[회사]에서 일했습니다',
+    Transcript.mask('(주)작은회사에서 일했습니다').text);
+  check('주식회사 X의 조사 보존', Transcript.mask('주식회사 한빛의 매출').text === '[회사]의 매출',
+    Transcript.mask('주식회사 한빛의 매출').text);
+  check('문장 끝 (주)X도 마스킹', Transcript.mask('현재 소속은 (주)새싹.').text === '현재 소속은 [회사].',
+    Transcript.mask('현재 소속은 (주)새싹.').text);
+  const longest = Transcript.mask('카카오뱅크에서 일했습니다');
+  check('긴 이름 우선 (카카오뱅크가 통째로 [회사])', longest.text === '[회사]에서 일했습니다', longest.text);
   check('원문은 그대로 (불변)', t.includes('홍길동'));
 }
 

@@ -169,3 +169,33 @@
   .iv-rec .dot { animation: none; }
   .iv-meter-fill { transition: none; }
 }
+
+/* ---------- 채점 결과 (모의·실제 공용) ---------- */
+.sc-q { border: 1px solid var(--line); border-radius: 12px; background: var(--bg-soft); padding: 14px 16px; margin: 12px 0; }
+.sc-q h4 { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+.sc-traits { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.sc-trait { font-family: var(--mono); font-size: 12px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim); }
+.sc-trait b { color: var(--ink); font-size: 13px; }
+.sc-excl { color: var(--ink-faint); font-size: 13px; font-style: italic; }
+
+/* ---------- 검토자 채점 ---------- */
+.hs-q { border: 1px solid var(--line); border-radius: 12px; background: var(--bg-soft); padding: 16px 18px; margin: 12px 0; }
+.hs-q h4 { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+.hs-text {
+  font-size: 14px; line-height: 1.7; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  padding: 10px 12px; user-select: text; cursor: text; white-space: pre-wrap; word-break: break-word;
+}
+.hs-text::selection, .hs-text *::selection { background: rgba(255,215,106,.45); }
+.hs-row { display: grid; grid-template-columns: 9rem 1fr; gap: 8px 12px; align-items: center; margin-top: 10px; }
+.hs-row label { font-size: 13px; color: var(--ink-dim); }
+.hs-row select {
+  font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+}
+.hs-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hs-ev { margin-top: 8px; display: grid; gap: 4px; }
+.hs-ev .cite { margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.hs-ev .cite .rm { margin-left: auto; font-size: 11px; color: var(--ink-faint); cursor: pointer; background: none; border: 0; }
+.hs-note { width: 100%; font: inherit; font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+.agree { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }

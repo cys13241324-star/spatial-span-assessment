@@ -74,6 +74,46 @@
     html += '</tbody></table></div>';
     html += '<div id="playSlot"></div>';
 
+    /* ---------- 자동 채점 결과 (모의·실제 공용 모양) ---------- */
+    if (sc.status && sc.status !== 'pending') {
+      html += '<h2>자동 채점 · 교정 전 원점수</h2>';
+      html += '<p>채점기 <code>' + esc(sc.modelId) + '</code> · 루브릭 <code>' + esc(sc.rubricVersion) + '</code> · 프롬프트 지문 <code>' + esc(sc.promptHash) + '</code>. ' +
+              (sc.modelId === 'mock-heuristic' ? '<strong>모의 채점기입니다 — 휴리스틱이며 타당도가 없습니다.</strong> 화면과 데이터 모양을 검증하는 용도입니다. ' : '') +
+              '원점수는 사람 점수로 교정되기 전이므로 척도 의미가 없습니다. 근거 인용은 "이 판단이 어느 발언에서 나왔는지"를 보여줍니다.</p>';
+      (sc.perQuestion || []).forEach(function (p, i) {
+        var q = Questions.SET.items[i];
+        html += '<div class="sc-q"><h4>' + (i + 1) + '. ' + esc(q ? q.text : p.questionId) + '</h4>';
+        if (p.excluded) {
+          var why = { no_transcript: '전사 없음', low_confidence: '전사 신뢰도 낮음', model_refusal: '모델 거부', parse_failed: '응답 해석 실패' }[p.excludeReason] || p.excludeReason;
+          html += '<p class="sc-excl">자동채점 제외 — ' + esc(why) + ' → 인적 검토</p></div>';
+          return;
+        }
+        html += '<div class="sc-traits">' + p.traits.map(function (t) {
+          var tr = Questions.RUBRIC.traits[t.traitId];
+          return '<span class="sc-trait">' + esc(tr ? tr.label : t.traitId) + ' <b>' + t.raw + '</b>/5 · 확신 ' + (t.confidence == null ? '—' : t.confidence.toFixed(2)) + '</span>';
+        }).join('') + '</div>';
+        (p.citations || []).forEach(function (c) {
+          var tr = Questions.RUBRIC.traits[c.traitId];
+          html += '<div class="cite"><b>' + esc(tr ? tr.label : (c.traitId || '근거')) + '</b> "' + esc(c.quotedText) + '" <span class="chip">' + c.startChar + '–' + c.endChar + '</span></div>';
+        });
+        if (p.flags && p.flags.length) html += '<div class="integrity">' + p.flags.map(function (f) { return '<span class="chip flag">' + esc(f) + '</span>'; }).join('') + '</div>';
+        html += '</div>';
+      });
+    }
+
+    /* ---------- 자동 vs 사람 일치도 (교정의 씨앗) ---------- */
+    if (s.humanScore && sc.status && sc.status !== 'pending') {
+      var ag = R.agreement(sc, s.humanScore);
+      html += '<h2>자동 · 검토자 일치도</h2>';
+      html += '<p>사람 점수 표본이 쌓이면 이 값으로 자동 점수를 교정합니다 (설계도 §3-06). 지금은 표본 1건이므로 <strong>수치 자체에 의미를 두지 마십시오.</strong></p>';
+      html += '<div class="agree">' +
+        tile('비교 쌍', ag.n, '개', '문항×특성') +
+        tile('정확 일치', ag.n ? Math.round(ag.exact / ag.n * 100) : '—', '%', '') +
+        tile('±1 이내', ag.n ? Math.round(ag.within1 / ag.n * 100) : '—', '%', '') +
+        tile('평균 차이', ag.n ? ag.meanDiff.toFixed(2) : '—', '', '자동 − 사람') +
+        '</div>';
+    }
+
     /* ---------- 전사 ---------- */
     html += '<h2>전사</h2>';
     if (!withT.length) {
@@ -118,11 +158,111 @@
     });
     html += '</div>';
 
+    /* ---------- 검토자 채점 ----------
+       사람이 특성별 점수와 근거 발언을 남긴다. 캘리브레이션과 타당도 연구의 원자료다.
+       자동 점수를 먼저 보여주면 앵커링되므로, 입력란은 자동 점수와 떨어뜨려 놓는다. */
+    html += '<h2>검토자 채점</h2>';
+    html += '<p>전사에서 <strong>근거가 되는 문장을 드래그로 선택</strong>한 뒤 특성을 골라 "근거로 추가"를 누르세요. 점수는 루브릭 앵커(1·3·5)를 기준으로 매깁니다. 저장하면 세션에 <code>humanScore</code>로 남습니다.</p>';
+    var hs = s.humanScore || { perQuestion: [] };
+    answers.forEach(function (a, i) {
+      var t = a.transcript; var q = Questions.SET.items[i];
+      var text = t ? (t.corrected != null ? t.corrected : t.raw) : '';
+      var prev = hs.perQuestion.find(function (p) { return p.questionId === q.id; }) || { traits: [], evidence: [], note: '' };
+      html += '<div class="hs-q" data-q="' + i + '"><h4>' + (i + 1) + '. ' + esc(q.text) + '</h4>';
+      if (!t) { html += '<p class="sc-excl">전사 없음 — 영상을 보고 채점하십시오.</p>'; }
+      html += '<div class="hs-text" id="hsText-' + i + '">' + esc(text || '(전사 없음)') + '</div>';
+      html += '<div class="hs-ctl" style="margin-top:8px"><select id="hsTrait-' + i + '">' +
+        q.traits.map(function (tr) { return '<option value="' + tr + '">' + esc(Questions.RUBRIC.traits[tr].label) + '</option>'; }).join('') +
+        '</select><button class="btn small" data-addev="' + i + '">선택 문장을 근거로 추가</button><span class="note" id="hsEvNote-' + i + '"></span></div>';
+      html += '<div class="hs-ev" id="hsEv-' + i + '">' + prev.evidence.map(function (e, k) { return evHtml(i, k, e); }).join('') + '</div>';
+      q.traits.forEach(function (tr) {
+        var cur = (prev.traits.find(function (x) { return x.traitId === tr; }) || {}).score;
+        var r = Questions.RUBRIC.traits[tr];
+        html += '<div class="hs-row"><label>' + esc(r.label) + '</label><select id="hsScore-' + i + '-' + tr + '">' +
+          '<option value="">— 미채점</option>' +
+          [1, 2, 3, 4, 5].map(function (v) {
+            var anchor = r.anchors[v] ? ' · ' + r.anchors[v] : '';
+            return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + v + anchor + '</option>';
+          }).join('') + '</select></div>';
+      });
+      html += '<textarea class="hs-note" id="hsNote-' + i + '" rows="2" placeholder="메모 (선택)">' + esc(prev.note || '') + '</textarea>';
+      html += '</div>';
+    });
+    html += '<div class="actions" style="justify-content:flex-start"><button class="btn primary" id="btnSaveHuman">검토자 채점 저장</button><span class="note" id="hsSaved"></span></div>';
+
     html += '<div class="actions">' +
       '<button class="btn ghost" data-goto="screen-done">돌아가기</button>' +
       '<button class="btn primary" id="btnExplain">이 기록은 어떻게 평가되나요?</button></div>';
 
     mount.innerHTML = html;
+
+    function evHtml(i, k, e) {
+      var tr = Questions.RUBRIC.traits[e.traitId];
+      return '<div class="cite" data-ev="' + k + '"><b>' + esc(tr ? tr.label : e.traitId) + '</b> "' + esc(e.quotedText) + '" <span class="chip">' + e.startChar + '–' + e.endChar + '</span>' +
+             '<button class="rm" data-rmev="' + i + ':' + k + '" type="button">제거</button></div>';
+    }
+
+    /* 검토자 근거: 선택 영역의 오프셋을 전사 요소 기준으로 계산 */
+    var evidence = {};
+    answers.forEach(function (a, i) {
+      var q = Questions.SET.items[i];
+      var prev = hs.perQuestion.find(function (p) { return p.questionId === q.id; });
+      evidence[i] = prev ? prev.evidence.slice() : [];
+    });
+
+    function selectionIn(el) {
+      var sel = window.getSelection && window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+      var range = sel.getRangeAt(0);
+      if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+      var pre = document.createRange(); pre.selectNodeContents(el); pre.setEnd(range.startContainer, range.startOffset);
+      var start = pre.toString().length;
+      var text = range.toString();
+      return { quotedText: text, startChar: start, endChar: start + text.length };
+    }
+
+    mount.addEventListener('click', function (e) {
+      var add = e.target.closest('[data-addev]');
+      if (add) {
+        var i = parseInt(add.getAttribute('data-addev'), 10);
+        var el = mount.querySelector('#hsText-' + i);
+        var note = mount.querySelector('#hsEvNote-' + i);
+        var selr = selectionIn(el);
+        if (!selr) { note.className = 'note err'; note.textContent = '전사 안에서 문장을 먼저 선택하세요'; return; }
+        selr.traitId = mount.querySelector('#hsTrait-' + i).value;
+        evidence[i].push(selr);
+        mount.querySelector('#hsEv-' + i).innerHTML = evidence[i].map(function (ev, k) { return evHtml(i, k, ev); }).join('');
+        note.className = 'note ok'; note.textContent = '추가됨 (' + selr.startChar + '–' + selr.endChar + ')';
+        return;
+      }
+      var rm = e.target.closest('[data-rmev]');
+      if (rm) {
+        var parts = rm.getAttribute('data-rmev').split(':');
+        var qi = parseInt(parts[0], 10), k = parseInt(parts[1], 10);
+        evidence[qi].splice(k, 1);
+        mount.querySelector('#hsEv-' + qi).innerHTML = evidence[qi].map(function (ev, kk) { return evHtml(qi, kk, ev); }).join('');
+        return;
+      }
+      if (e.target.id === 'btnSaveHuman') {
+        var out = { reviewerRef: 'local-reviewer', at: new Date().toISOString(), rubricVersion: Questions.RUBRIC.version, perQuestion: [] };
+        answers.forEach(function (a, i) {
+          var q = Questions.SET.items[i];
+          var traits = q.traits.map(function (tr) {
+            var v = mount.querySelector('#hsScore-' + i + '-' + tr).value;
+            return v ? { traitId: tr, score: parseInt(v, 10) } : null;
+          }).filter(Boolean);
+          out.perQuestion.push({ questionId: q.id, traits: traits, evidence: evidence[i], note: mount.querySelector('#hsNote-' + i).value });
+        });
+        s.humanScore = out;
+        var p = ctx.app.saveHumanScore ? ctx.app.saveHumanScore(out) : Promise.resolve();
+        p.then(function () {
+          var n = mount.querySelector('#hsSaved');
+          n.className = 'note ok'; n.textContent = '저장됨 · ' + out.at.slice(11, 19);
+          /* 일치도 블록이 새로 생기므로 다시 그린다 */
+          R.render(mount, ctx);
+        });
+      }
+    });
 
     mount.querySelector('#btnExplain').addEventListener('click', function () {
       R.renderExplain(document.getElementById('explainBody'), ctx);
@@ -139,6 +279,26 @@
       if (!asm || !asm.blob) { slot.innerHTML = '<div class="callout warn">영상이 없습니다 (파기되었거나 저장 실패).</div>'; return; }
       slot.innerHTML = '<p class="hint">조회 이력이 기록되었습니다.</p><video class="iv-video iv-playback" controls playsinline src="' + URL.createObjectURL(asm.blob) + '"></video>';
     });
+  };
+
+  /** 자동 점수와 사람 점수의 일치도 — 순수 함수 (테스트 대상) */
+  R.agreement = function (auto, human) {
+    var n = 0, exact = 0, within1 = 0, diffSum = 0;
+    (auto.perQuestion || []).forEach(function (p) {
+      if (p.excluded) return;
+      var h = (human.perQuestion || []).find(function (x) { return x.questionId === p.questionId; });
+      if (!h) return;
+      p.traits.forEach(function (t) {
+        var ht = h.traits.find(function (x) { return x.traitId === t.traitId; });
+        if (!ht) return;
+        n++;
+        var d = t.raw - ht.score;
+        if (d === 0) exact++;
+        if (Math.abs(d) <= 1) within1++;
+        diffSum += d;
+      });
+    });
+    return { n: n, exact: exact, within1: within1, meanDiff: n ? diffSum / n : 0 };
   };
 
   /* ============================================================

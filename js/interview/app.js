@@ -61,7 +61,8 @@
     var s = Object.assign(base, {
       kind: 'video-interview',
       candidateRef: null,                    // 직접 식별자는 여기 두지 않는다
-      names: [],                             // 마스킹용 이름 (있으면)
+      /* 마스킹용 이름. 고정 전사로 테스트할 때는 픽스처의 이름을 써야 마스킹이 보인다 */
+      names: (Providers.get('stt').id === 'fixture' && global.Fixtures) ? global.Fixtures.names.slice() : [],
       jobId: 'placeholder',
       questionSetVersion: Questions.SET.version,
       rubricVersion: Questions.RUBRIC.version,
@@ -218,7 +219,7 @@
     var answerStart = Date.now();
     var rec = state.recorder.startRecording(state.session.id, q.id);
     var stt = Providers.get('stt');
-    var sttHandle = stt.available() ? stt.start({ lang: 'ko-KR' }) : null;
+    var sttHandle = stt.available() ? stt.start({ lang: 'ko-KR', questionId: q.id, questionText: q.text }) : null;
 
     var answerEnd = await runTimer(answerMs, '답변 시간', '');
     els.btnStopAnswer.hidden = true;
@@ -411,7 +412,8 @@
      'timerLabel', 'timerLeft', 'timerFill', 'btnStartAnswer', 'btnStopAnswer', 'qFeedback',
      'practicePlayback', 'practiceMeta', 'btnToLive',
      'uploadTable', 'uploadWarn', 'btnToTranscript', 'transcriptList', 'btnSubmit',
-     'doneTable', 'btnErase', 'btnDownload', 'btnReport', 'reportBody', 'explainBody'
+     'doneTable', 'btnErase', 'btnDownload', 'btnReport', 'reportBody', 'explainBody',
+     'manualQ', 'manualText', 'btnManualSave', 'btnManualSkip'
     ].forEach(function (id) { els[id] = $(id); });
 
     Providers.fromQuery(DEFAULT_PROVIDERS);
@@ -472,6 +474,28 @@
       InterviewReport.render(els.reportBody, reportCtx());
       App.show('screen-report');
     });
+
+    /* 수동 전사 UI 훅 — stt=manual 공급자가 녹화 직후 호출한다 */
+    Providers.ui.manualTranscript = function (questionText) {
+      return new Promise(function (resolve) {
+        els.manualQ.textContent = questionText || '';
+        els.manualText.value = '';
+        App.show('screen-manual');
+        function done(v) {
+          els.btnManualSave.onclick = null; els.btnManualSkip.onclick = null;
+          App.show('screen-question');
+          resolve(v);
+        }
+        els.btnManualSave.onclick = function () { done(els.manualText.value); };
+        els.btnManualSkip.onclick = function () { done(null); };
+      });
+    };
+
+    /* 검토자 채점 저장 — report.js가 호출 */
+    App.saveHumanScore = async function (hs) {
+      state.session.humanScore = hs;
+      await persist();
+    };
 
     document.addEventListener('click', function (e) {
       var t = e.target.closest && e.target.closest('[data-goto]');

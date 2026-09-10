@@ -43,17 +43,22 @@ const idx = n => order.indexOf(n);
 (idx('js/core.js') === 0) ? ok('core.js 첫 로드') : err('core.js가 첫 로드가 아님');
 (idx('js/scoring.js') >= 0 && idx('js/scoring.js') < idx('js/interview/app.js')) ? ok('scoring.js가 app.js보다 먼저') : err('scoring.js 누락/순서 오류 — integritySummary가 실패한다');
 (idx('js/interview/providers.js') < idx('js/interview/store.js')) ? ok('providers.js가 store.js보다 먼저 (register 필요)') : err('providers/store 순서 오류');
+(idx('js/interview/providers.js') < idx('js/interview/mockscorer.js') && idx('js/interview/transcript.js') < idx('js/interview/mockscorer.js')) ? ok('mockscorer.js가 providers·transcript 뒤에 로드') : err('mockscorer 로드 순서 오류');
+(idx('js/interview/fixtures.js') < idx('js/interview/app.js')) ? ok('fixtures.js 로드됨') : err('fixtures.js 미로드 — stt=fixture가 동작하지 않는다');
 (order[order.length - 1] === 'js/interview/app.js') ? ok('app.js 마지막') : err('app.js가 마지막이 아님');
 
 /* 사용하는 전역이 실제로 로드되는지 */
 const globals = { Core: 'js/core.js', Scoring: 'js/scoring.js', Providers: 'js/interview/providers.js',
   Transcript: 'js/interview/transcript.js', Questions: 'js/interview/questions.js', Retention: 'js/interview/store.js',
-  Chunks: 'js/interview/store.js', Recorder: 'js/interview/recorder.js', InterviewReport: 'js/interview/report.js' };
+  Chunks: 'js/interview/store.js', Recorder: 'js/interview/recorder.js', InterviewReport: 'js/interview/report.js',
+  Fixtures: 'js/interview/fixtures.js', MockScorer: 'js/interview/mockscorer.js' };
+let globalsChecked = 0;
 for (const [g, f] of Object.entries(globals)) {
-  const used = new RegExp('\b' + g + '\.').test(app + rep);
+  const used = new RegExp('\\b' + g + '\\.').test(app + rep);
+  if (used) globalsChecked++;
   if (used && idx(f) < 0) err(`${g} 사용하는데 ${f} 미로드`);
 }
-ok('전역 참조 모두 로드됨');
+globalsChecked >= 6 ? ok(`전역 참조 ${globalsChecked}개 모두 로드됨`) : err('전역 참조 검사가 거의 아무것도 잡지 못함 — 정규식 확인');
 
 /* CSS 클래스 */
 const used = new Set();

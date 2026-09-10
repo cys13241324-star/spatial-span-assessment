@@ -124,6 +124,20 @@
     </div>
   </section>
 
+  <!-- ===== 수동 전사 입력 (stt=manual 전용) ===== -->
+  <section class="screen" id="screen-manual">
+    <div class="card">
+      <p class="eyebrow">수동 전사 — 테스트용</p>
+      <h1>방금 말한 내용을 그대로 적어 주세요</h1>
+      <p id="manualQ" class="iv-q"></p>
+      <textarea id="manualText" class="tr-edit" rows="6" placeholder="STT가 있었다면 이 자리에 자동으로 들어옵니다"></textarea>
+      <div class="actions">
+        <button class="btn ghost" id="btnManualSkip">건너뛰기 (전사 없음)</button>
+        <button class="btn primary" id="btnManualSave">저장하고 계속</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== 연습 종료 ===== -->
   <section class="screen" id="screen-practice-done">
     <div class="card">
@@ -193,6 +207,8 @@
 <script src="js/interview/transcript.js"></script>
 <script src="js/interview/questions.js"></script>
 <script src="js/interview/store.js"></script>
+<script src="js/interview/fixtures.js"></script>
+<script src="js/interview/mockscorer.js"></script>
 <script src="js/interview/recorder.js"></script>
 <script src="js/interview/report.js"></script>
 <script src="js/interview/app.js"></script>

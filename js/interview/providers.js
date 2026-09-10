@@ -232,6 +232,50 @@
     stop: function () { return Promise.resolve(null); }
   });
 
+  /* ---------- 테스트용 STT 둘 ----------
+     fixture: 문항별 고정 전사 (fixtures.js). 전사 정정·마스킹·채점 화면을 API 없이 구동
+     manual : 녹화 뒤 응시자(테스터)가 직접 타이핑. 실제 발화로 정정 화면을 시험할 때 */
+  Providers.register('stt', {
+    id: 'fixture',
+    label: '고정 전사 — 테스트용',
+    external: false,
+    devOnly: true,
+    available: function () { return !!global.Fixtures; },
+    start: function (opts) {
+      var qid = opts && opts.questionId;
+      return { stop: function () {
+        var t = global.Fixtures && global.Fixtures.transcripts[qid];
+        return Promise.resolve(t ? JSON.parse(JSON.stringify(t)) : null);
+      } };
+    },
+    stop: function () { return Promise.resolve(null); }
+  });
+
+  /* 화면이 필요한 공급자는 앱이 꽂아 주는 UI 훅을 쓴다 */
+  Providers.ui = {};
+
+  Providers.register('stt', {
+    id: 'manual',
+    label: '수동 입력 — 녹화 후 직접 타이핑',
+    external: false,
+    devOnly: true,
+    available: function () { return true; },
+    start: function (opts) {
+      var qText = opts && opts.questionText;
+      return { stop: function () {
+        if (!Providers.ui.manualTranscript) return Promise.resolve(null);
+        return Providers.ui.manualTranscript(qText).then(function (text) {
+          if (!text || !text.trim()) return null;
+          var ws = text.trim().split(/\s+/).map(function (w) {
+            return { text: w, startMs: null, endMs: null, confidence: 1 };
+          });
+          return { text: text.trim(), words: ws, meanConfidence: 1, lowConfidenceRatio: 0, provider: 'manual' };
+        });
+      } };
+    },
+    stop: function () { return Promise.resolve(null); }
+  });
+
   /* ============================================================
      Scorer — 루브릭 채점
      기본은 보류다. 실제 채점은 서버에서 한다 (server/score-claude.mjs).
