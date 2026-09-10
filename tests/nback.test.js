@@ -25,13 +25,20 @@ function makeEl(tag) {
 
 function makeStage() {
   const cache = {};
+  /* 과제가 .nb-key 세 개를 querySelectorAll로 잡아 활성/비활성을 토글한다 */
+  const keys = [makeEl('button'), makeEl('button'), makeEl('button')];
+  keys.forEach((k, i) => { k.disabled = false; k._k = ['two', 'three', 'none'][i]; });
   const stage = {
     innerHTML: '',
     querySelector(sel) {
       if (!cache[sel]) cache[sel] = makeEl();
       return cache[sel];
     },
-    _cache: cache
+    querySelectorAll(sel) {
+      return sel === '.nb-key' ? keys : [];
+    },
+    _cache: cache,
+    _keys: keys
   };
   return stage;
 }
@@ -661,6 +668,137 @@ console.log('\n[11] 과제 라벨과 도형 5종');
 
   check('새 도형(원·삼각형)이 포함됨',
     nbk.walkthrough[0].html.includes('원') && nbk.walkthrough[0].html.includes('삼각형'));
+}
+
+/* ============================================================
+   12. 입력 가능 구간 — 도입 자극에서는 키를 잠근다
+   ============================================================ */
+console.log('\n[12] 키 활성/비활성');
+{
+  const real = { s: C.stimulusMs, i: C.isiMs, w: C.responseWindowMs,
+                 p: C.preRoundMs, f: C.postTrialFeedbackMs };
+  C.stimulusMs = 40; C.isiMs = 8; C.responseWindowMs = 48;
+  C.preRoundMs = 2; C.postTrialFeedbackMs = 2;
+
+  const stage = makeStage();
+  const task = new ShapeNbackTask({
+    stage, rng: new Core.Rng(555), phase: 'live',
+    onTrial() {}, onStatus() {}
+  });
+
+  check('마운트 직후에는 키가 잠겨 있음', stage._keys.every(k => k.disabled === true));
+
+  /* 자극 진행 중 상태를 표집한다 */
+  const snaps = [];
+  const base = task.onStatus;
+  task.onStatus = function (st) {
+    base(st);
+    if (st.kind === 'warmup' || st.kind === 'respond') {
+      snaps.push({ kind: st.kind, locked: stage._keys.every(k => k.disabled) });
+    }
+  };
+
+  await task._runRound({ round: 1, nLevels: [2], count: 5, targetRates: { two: 0.33 } });
+
+  const warmups = snaps.filter(x => x.kind === 'warmup');
+  const judged = snaps.filter(x => x.kind === 'respond');
+
+  check('도입 자극이 2회 잡힘', warmups.length === 2, String(warmups.length));
+  check('도입 자극에서는 키가 잠김', warmups.every(x => x.locked === true),
+    JSON.stringify(warmups));
+  check('판단 자극에서는 키가 열림', judged.length > 0 && judged.every(x => x.locked === false),
+    JSON.stringify(judged));
+  check('라운드 종료 후 다시 잠김', stage._keys.every(k => k.disabled === true));
+
+  /* 응답을 하면 그 자극의 나머지 시간 동안 잠긴다 */
+  {
+    const st2 = makeStage();
+    const t2 = new ShapeNbackTask({
+      stage: st2, rng: new Core.Rng(31), phase: 'live',
+      onTrial() {}, onStatus() {}
+    });
+    let lockedAfterRespond = null;
+    const b2 = t2.onStatus;
+    let done = false;
+    t2.onStatus = function (st) {
+      b2(st);
+      if (st.kind === 'respond' && !done) {
+        done = true;
+        setTimeout(() => {
+          t2._respond('none', 'keyboard');
+          lockedAfterRespond = st2._keys.every(k => k.disabled);
+        }, 0);
+      }
+    };
+    await t2._runRound({ round: 1, nLevels: [2], count: 4, targetRates: { two: 0 } });
+    t2.destroy();
+    check('응답 직후 키가 잠김', lockedAfterRespond === true, String(lockedAfterRespond));
+  }
+
+  task.destroy();
+  C.stimulusMs = real.s; C.isiMs = real.i; C.responseWindowMs = real.w;
+  C.preRoundMs = real.p; C.postTrialFeedbackMs = real.f;
+}
+
+/* ============================================================
+   13. 라운드별 키 문구 — 1라운드에 "둘 다 아님"은 틀린 말이다
+   ============================================================ */
+console.log('\n[13] 라운드별 Space 키 문구');
+{
+  const stage = makeStage();
+  const task = new ShapeNbackTask({
+    stage, rng: new Core.Rng(9), phase: 'live', onTrial() {}, onStatus() {}
+  });
+  const label = stage.querySelector('#nbKeyNoneLabel');
+  const three = stage.querySelector('#nbKeyThree');
+
+  task._setRoundUi(false);
+  check('1라운드: Space는 "2번째 전과 다름"', label.textContent === '2번째 전과 다름',
+    label.textContent);
+  check('1라운드: → 키는 숨김', three.hidden === true);
+  check('1라운드 규칙문에 "둘 다"가 없음', !/둘 다/.test(stage.querySelector('#nbRule').innerHTML),
+    stage.querySelector('#nbRule').innerHTML);
+
+  task._setRoundUi(true);
+  check('2라운드: Space는 "둘 다 아님"', label.textContent === '둘 다 아님', label.textContent);
+  check('2라운드: → 키가 보임', three.hidden === false);
+  check('2라운드 규칙문에 3번째 전이 있음', /3번째 전/.test(stage.querySelector('#nbRule').innerHTML));
+
+  task.destroy();
+
+  /* 초기 마크업도 1라운드 기준이어야 한다 — 첫 화면이 2라운드 문구면 오해를 준다 */
+  const src = require('fs').readFileSync(require('path').join(ROOT, 'js/task-shape-nback.js'), 'utf8');
+  check('초기 마크업의 Space 문구가 1라운드 기준',
+    /id="nbKeyNoneLabel">2번째 전과 다름</.test(src));
+}
+
+/* ============================================================
+   14. N-back에는 취소 기능이 없다
+   ============================================================ */
+console.log('\n[14] 취소 기능 부재');
+{
+  const stage = makeStage();
+  const task = new ShapeNbackTask({
+    stage, rng: new Core.Rng(1), phase: 'live', onTrial() {}, onStatus() {}
+  });
+  check('undo 메서드가 없음', typeof task.undo === 'undefined');
+  check('submit 메서드가 없음', typeof task.submit === 'undefined');
+
+  /* 셸은 undo가 있는 과제에서만 취소 UI를 띄운다 */
+  const app = require('fs').readFileSync(require('path').join(ROOT, 'js/app.js'), 'utf8');
+  check('셸이 undo 유무를 확인하고 호출', /state\.task\.undo\)/.test(app));
+  check('셸이 undo 상태가 없으면 컨트롤을 숨김', /var showing = !!\(u && u\.shown\)/.test(app));
+
+  /* hidden이 클래스 display에 밀리지 않도록 못박혀 있는지 */
+  const css = require('fs').readFileSync(require('path').join(ROOT, 'css/app.css'), 'utf8');
+  check('[hidden] 규칙이 있음 (없으면 취소 버튼이 노출된다)',
+    /\[hidden\]\s*\{[^}]*display:\s*none\s*!important/.test(css));
+
+  /* N-back은 undo 상태를 방출하지 않는다 */
+  const nbSrc = require('fs').readFileSync(require('path').join(ROOT, 'js/task-shape-nback.js'), 'utf8');
+  check('N-back이 undo 상태를 방출하지 않음', !/undo:\s*this\.undoAvailable/.test(nbSrc));
+
+  task.destroy();
 }
 
 console.log('\n' + '='.repeat(52));

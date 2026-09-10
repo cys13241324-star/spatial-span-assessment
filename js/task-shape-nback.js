@@ -181,7 +181,7 @@
           '<button type="button" class="nb-key" data-k="three" id="nbKeyThree">' +
             '<b>→</b><span>3번째 전과 같음</span></button>' +
           '<button type="button" class="nb-key" data-k="none" id="nbKeyNone">' +
-            '<b>Space</b><span>둘 다 아님</span></button>' +
+            '<b>Space</b><span id="nbKeyNoneLabel">2번째 전과 다름</span></button>' +
         '</div>' +
       '</div>';
 
@@ -205,13 +205,38 @@
       self._respond(k, 'keyboard');
     };
     document.addEventListener('keydown', this._keyHandler);
+
+    /* 시작 전에는 받지 않는다 */
+    this._setKeysEnabled(false);
   };
 
   ShapeNbackTask.prototype._setRoundUi = function (dual) {
     this.elRule.innerHTML = dual
       ? '<b>2번째 전</b>과 같으면 <kbd>←</kbd> · <b>3번째 전</b>과 같으면 <kbd>→</kbd> · 둘 다 아니면 <kbd>Space</kbd>'
       : '<b>2번째 전</b>과 같으면 <kbd>←</kbd> · 다르면 <kbd>Space</kbd>';
+
     this.stage.querySelector('#nbKeyThree').hidden = !dual;
+
+    /* Space 키의 뜻이 라운드마다 다르다. 1라운드는 비교 대상이 하나뿐이라
+       "둘 다 아님"이 틀린 문구가 된다. 무엇과 비교하는지 그대로 적는다. */
+    var noneLabel = this.stage.querySelector('#nbKeyNoneLabel');
+    if (noneLabel) {
+      noneLabel.textContent = dual ? '둘 다 아님' : '2번째 전과 다름';
+    }
+  };
+
+  /* ---------- 키 활성/비활성 ----------
+     도입 자극(각 라운드 앞 2~3장)에서는 입력을 받지 않는다. 그런데 버튼이
+     눌릴 것처럼 보이면 응시자가 눌러 보고 반응이 없어 혼란스럽다.
+     받지 않는 구간에는 실제로 비활성화해 둔다. */
+  ShapeNbackTask.prototype._setKeysEnabled = function (on) {
+    var keys = this.stage.querySelectorAll
+      ? this.stage.querySelectorAll('.nb-key') : null;
+    if (!keys) return;
+    Array.prototype.forEach.call(keys, function (b) {
+      b.disabled = !on;
+      if (b.classList) b.classList.toggle('nb-key-off', !on);
+    });
   };
 
   ShapeNbackTask.prototype._showShape = function (shapeId) {
@@ -256,8 +281,9 @@
     this._rt = Math.round(performance.now() - this._onsetAt);
     this._open = false;
 
-    /* 입력이 확정됐음을 막대에도 반영한다 — 남은 시간을 더 볼 이유가 없다 */
+    /* 입력이 확정됐음을 막대와 키에도 반영한다 — 더 받을 것이 없다 */
     if (this.elTimer && this.elTimer.classList) this.elTimer.classList.add('nb-timer-locked');
+    this._setKeysEnabled(false);
 
     var btn = this.stage.querySelector('.nb-key[data-k="' + key + '"]');
     if (btn) {
@@ -284,8 +310,13 @@
     var tsClient = Date.now();
     this._showShape(shapeId);
 
-    if (judged) this._startTimer(CONFIG.responseWindowMs);
-    else this._stopTimer(true);
+    if (judged) {
+      this._startTimer(CONFIG.responseWindowMs);
+      this._setKeysEnabled(true);
+    } else {
+      this._stopTimer(true);
+      this._setKeysEnabled(false);
+    }
 
     this.onStatus({
       kind: judged ? 'respond' : 'warmup',
@@ -309,8 +340,12 @@
     /* 공백 구간 — 도형은 사라졌지만 판단은 계속 받는다 */
     await sleep(CONFIG.isiMs);
     if (this._aborted) return null;
+
+    /* 입력 창이 닫히는 지점. 키도 여기서 잠근다 —
+       "받는 동안만 열려 있다"가 유일한 규칙이어야 상태가 어긋나지 않는다. */
     this._open = false;
     this._stopTimer(false);
+    this._setKeysEnabled(false);
 
     /* 채점 */
     var resp = this._response;
@@ -383,6 +418,7 @@
     };
 
     this._setRoundUi(built.dual);
+    this._setKeysEnabled(false);
     this.onStatus({
       kind: 'roundstart',
       text: spec.round === 1 ? '1라운드 — 2-back' : '2라운드 — 2&3-back',
@@ -400,6 +436,8 @@
   ShapeNbackTask.prototype.runPractice = async function () {
     await this._runRound(CONFIG.practice);
     this._clearShape();
+    this._setKeysEnabled(false);
+    this._stopTimer(true);
     this.onStatus({ kind: 'done', text: '연습이 끝났습니다' });
   };
 
@@ -409,6 +447,8 @@
       await this._runRound(CONFIG.rounds[i]);
     }
     this._clearShape();
+    this._setKeysEnabled(false);
+    this._stopTimer(true);
     this.onStatus({ kind: 'done', text: '검사가 끝났습니다' });
   };
 
