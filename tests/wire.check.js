@@ -132,5 +132,46 @@ if (rmIdx < 0) {
 (/animationDuration/.test(nb)) ? ok('타이머 길이를 코드가 주입')
   : err('타이머 길이 주입 없음');
 
+/* ---------- 10. 가이드 레이아웃 안정성 ---------- */
+(/\.wt-demo\s*\{[^}]*height:\s*\d+px/.test(css))
+  ? ok('설명 예시 영역 높이 고정 — 다음 버튼이 움직이지 않는다')
+  : err('.wt-demo 높이가 고정되지 않음 — 스텝마다 버튼이 위아래로 튄다');
+(/\.wt-body\s*\{[^}]*min-height/.test(css))
+  ? ok('설명 본문 최소 높이 확보')
+  : err('.wt-body min-height 없음 — 글 길이에 따라 버튼이 움직인다');
+(/\.wt-slot\s*\{[^}]*min-height/.test(css))
+  ? ok('마지막 안내문 자리 예약됨')
+  : err('.wt-slot min-height 없음 — 마지막 스텝에서 버튼이 밀린다');
+(!/els\.wtDemo\.hidden/.test(app))
+  ? ok('예시 영역을 숨기지 않음 (자리 유지)')
+  : err('예시 영역을 hidden 처리 — 버튼 위치가 흔들린다');
+
+/* ---------- 11. 정오 노출 정책 ---------- */
+for (const [name, src] of [['N-back', nb], ['Corsi', span]]) {
+  (/kind: 'logged'/.test(src)) ? ok(name + '이 응답/무응답만 방출')
+    : err(name + '에 logged 상태가 없음');
+  (!/kind: 'feedback'/.test(src)) ? ok(name + '에 정오 피드백 방출 없음')
+    : err(name + '이 아직 응시 중 정오를 방출한다');
+}
+(/case 'logged'/.test(app)) ? ok('셸이 logged 상태를 처리')
+  : err('셸이 logged 상태를 처리하지 않음 — 화면에 아무것도 안 뜬다');
+(/\.feedback\.muted/.test(css)) ? ok('무응답 표시 스타일 존재')
+  : err('.feedback.muted 없음');
+/* 리포트에서는 반대로 정오가 나와야 한다 */
+(/<th>판정<\/th>/.test(nb)) ? ok('리포트 원시 로그에 판정 열 있음')
+  : err('리포트에 판정 열이 없음 — 이의제기 근거가 남지 않는다');
+
+/* ---------- 12. 과제 라벨 ---------- */
+(/label: '[^']*\(현행\)'/.test(nb)) ? ok('N-back 라벨에 (현행)')
+  : err('N-back 라벨에 (현행) 표시 없음');
+(/label: '[^']*\(고전\)'/.test(span)) ? ok('Corsi 라벨에 (고전)')
+  : err('Corsi 라벨에 (고전) 표시 없음');
+
+/* ---------- 13. 도형 수 ---------- */
+(/var SHAPE_COUNT = SHAPES\.length/.test(nb)) ? ok('도형 수가 상수로 일반화됨')
+  : err('도형 수가 하드코딩되어 있음');
+(!/rng\.int\(3\)/.test(nb)) ? ok('rng.int(3) 하드코딩 없음')
+  : err('rng.int(3)이 남아 있음 — 도형 5종이 반영되지 않는다');
+
 console.log('\n' + (bad ? `문제 ${bad}건` : '배선 대조 통과'));
 process.exitCode = bad ? 1 : 0;

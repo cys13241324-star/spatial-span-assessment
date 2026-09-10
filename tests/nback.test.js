@@ -129,7 +129,14 @@ console.log('\n[2] 자극열 생성 — 라운드 1 (2-back 단독)');
   check('도입 자극은 판단 대상 아님 (라벨 null)',
     b0.labels[0] === null && b0.labels[1] === null && b0.labels[2] !== null);
   check('자극 수가 명세와 일치', b0.seq.length === spec.count, b0.seq.length + ' vs ' + spec.count);
-  check('도형은 3종만 사용', b0.seq.every(s => s >= 0 && s <= 2));
+  check('도형 5종을 사용', ShapeNbackTask.SHAPES.length === 5,
+    String(ShapeNbackTask.SHAPES.length));
+  check('자극이 도형 범위 안에 있음',
+    b0.seq.every(s => s >= 0 && s < ShapeNbackTask.SHAPES.length));
+  check('도형 이름이 모두 다름',
+    new Set(ShapeNbackTask.SHAPES.map(x => x.name)).size === 5);
+  check('도형 svg가 모두 다름',
+    new Set(ShapeNbackTask.SHAPES.map(x => x.svg)).size === 5);
 }
 
 console.log('\n[3] 표적 비율과 재현성');
@@ -539,6 +546,121 @@ console.log('\n[9] 설명 스텝 — 내용과 예시 그림');
 
   check('마지막 스텝이 찍기 경고', /찍|남발/.test(w[w.length - 1].title + w[w.length - 1].body));
   check('설명에 갱신 시간 1.5초 명시', w.some(s => /1\.5초/.test(s.body)));
+}
+
+/* ============================================================
+   10. 정오 노출 정책
+       응시 중에는 가리고, 마지막 리포트에서는 전부 공개한다.
+       기업용이므로 이의제기·재검토에 쓸 근거가 남아야 한다.
+   ============================================================ */
+console.log('\n[10] 정오 노출 정책 — 응시 중 가림 / 리포트에서 공개');
+{
+  const real = { s: C.stimulusMs, i: C.isiMs, w: C.responseWindowMs,
+                 p: C.preRoundMs, f: C.postTrialFeedbackMs };
+  C.stimulusMs = 30; C.isiMs = 6; C.responseWindowMs = 36;
+  C.preRoundMs = 2; C.postTrialFeedbackMs = 2;
+
+  /* --- 응시 중: 정답/오답 문구가 나오면 안 된다 --- */
+  for (const phase of ['practice', 'live']) {
+    const texts = [], kinds = [];
+    const task = new ShapeNbackTask({
+      stage: makeStage(), rng: new Core.Rng(4242), phase,
+      onTrial() {},
+      onStatus(st) { kinds.push(st.kind); if (st.text) texts.push(st.text); }
+    });
+    /* 표적에도 일부러 같은 키를 눌러 오답을 섞는다 */
+    const base = task.onStatus;
+    task.onStatus = function (st) {
+      base(st);
+      if (st.kind === 'respond') setTimeout(() => task._respond('two', 'keyboard'), 0);
+    };
+    await task._runRound({ round: 1, nLevels: [2], count: 6, targetRates: { two: 0.25 } });
+    task.destroy();
+
+    const joined = texts.join(' | ');
+    check(`${phase}: 정답/오답 문구 없음`, !/정답|오답/.test(joined), joined);
+    check(`${phase}: feedback 상태 미방출`, !kinds.includes('feedback'),
+      [...new Set(kinds)].join(','));
+    check(`${phase}: 응답 접수 표시는 있음`, /응답/.test(joined), joined);
+  }
+
+  /* --- 무응답은 알린다: 안 누른 사실은 알려줘야 다음 자극에 대비한다 --- */
+  {
+    const texts = [];
+    const task = new ShapeNbackTask({
+      stage: makeStage(), rng: new Core.Rng(7), phase: 'live',
+      onTrial() {}, onStatus(st) { if (st.text) texts.push(st.text); }
+    });
+    await task._runRound({ round: 1, nLevels: [2], count: 5, targetRates: { two: 0 } });
+    task.destroy();
+    check('무응답은 무응답으로 표시', texts.some(t => t === '무응답'), texts.join(' | '));
+  }
+
+  /* --- 리포트: 자극별 정답과 판정이 전부 나와야 한다 --- */
+  {
+    const d = Tasks.get('shape-nback');
+    const liveTrials = [
+      { taskId: 'shape-nback', phase: 'live', correct: true, rtFirstMs: 700, difficulty: 2,
+        stimulus: [0], response: [0], undoCount: 0, timedOut: false,
+        taskFields: { round: 1, judged: true, position: 3, shapeId: 0, shapeName: '별',
+                      back2: 0, back3: null, condition: 'two', responseKey: 'two',
+                      responseVia: 'keyboard', outcome: 'hit' } },
+      { taskId: 'shape-nback', phase: 'live', correct: false, rtFirstMs: 900, difficulty: 2,
+        stimulus: [1], response: [1], undoCount: 0, timedOut: false,
+        taskFields: { round: 1, judged: true, position: 4, shapeId: 1, shapeName: '반원',
+                      back2: 3, back3: null, condition: 'none', responseKey: 'two',
+                      responseVia: 'keyboard', outcome: 'fa' } },
+      { taskId: 'shape-nback', phase: 'live', correct: false, rtFirstMs: null, difficulty: 2,
+        stimulus: [2], response: [], undoCount: 0, timedOut: true,
+        taskFields: { round: 1, judged: true, position: 5, shapeId: 2, shapeName: '마름모',
+                      back2: 2, back3: null, condition: 'two', responseKey: null,
+                      responseVia: null, outcome: 'omission' } }
+    ];
+    const ctx = {
+      desc: d,
+      session: { id: 'sess_test', seed: 12345, deviceFingerprint: 'dev_x' },
+      liveTrials,
+      raw: { integrityEvents: [] },
+      score: d.score(liveTrials)
+    };
+
+    const log = d.logTable(ctx);
+    check('리포트에 정답 열이 있음', /<th>정답<\/th>/.test(log));
+    check('리포트에 판정 열이 있음', /<th>판정<\/th>/.test(log));
+    check('리포트가 적중을 표기', /적중/.test(log));
+    check('리포트가 오경보를 표기', /오경보/.test(log));
+    check('리포트가 무응답을 표기', /무응답/.test(log));
+    check('리포트가 자극별 정답 조건을 노출',
+      /2번째 전 일치/.test(log) && /불일치/.test(log));
+    check('리포트가 누른 키를 노출', /←/.test(log));
+
+    const sec = d.sections(ctx);
+    check('리포트가 응시 중 미고지 사실을 밝힘', /응시 중|가렸|알려주지/.test(sec), sec.slice(0, 200));
+
+    const ex = d.explain(ctx);
+    check('설명 화면이 정오 미고지 절차를 명시', /정오 미고지/.test(ex.procedure));
+  }
+
+  C.stimulusMs = real.s; C.isiMs = real.i; C.responseWindowMs = real.w;
+  C.preRoundMs = real.p; C.postTrialFeedbackMs = real.f;
+}
+
+/* ============================================================
+   11. 과제 라벨 — 현행 / 고전 구분
+   ============================================================ */
+console.log('\n[11] 과제 라벨과 도형 5종');
+{
+  const nbk = Tasks.get('shape-nback');
+  check('N-back 라벨에 (현행)', /\(현행\)/.test(nbk.label), nbk.label);
+  check('N-back 부제에 현행 명시', /현행/.test(nbk.subtitle), nbk.subtitle);
+  check('설명 1스텝이 다섯 종류 안내', /다섯/.test(nbk.walkthrough[0].title),
+    nbk.walkthrough[0].title);
+
+  const legendCount = (nbk.walkthrough[0].html.match(/<div class="wt-l">/g) || []).length;
+  check('도형 나열 예시에 5개가 그려짐', legendCount === 5, String(legendCount));
+
+  check('새 도형(원·삼각형)이 포함됨',
+    nbk.walkthrough[0].html.includes('원') && nbk.walkthrough[0].html.includes('삼각형'));
 }
 
 console.log('\n' + '='.repeat(52));

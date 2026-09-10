@@ -406,6 +406,7 @@ p:last-child { margin-bottom: 0; }
 
 .feedback { font-size: 13.5px; font-weight: 600; margin-left: auto; }
 .feedback.ok  { color: var(--ok); }
+.feedback.muted { color: var(--ink-faint); font-weight: 500; }
 .feedback.err { color: var(--err); }
 .feedback.info { color: var(--ink-dim); font-weight: 500; }
 
@@ -559,7 +560,7 @@ kbd {
 /* ============================================================
    도형 N-back
    ============================================================ */
-.nb { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.nb { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 
 .nb-rule {
   margin: 0;
@@ -607,37 +608,70 @@ kbd {
 }
 
 /* ---------- 응답 시간 막대 ----------
-   남은 시간을 눈으로 볼 수 있게 채워지는 막대. 자극마다 재점화된다. */
+   남은 시간을 눈으로 볼 수 있게 채워지는 막대. 자극마다 재점화된다.
+
+   주의 두 가지:
+   1) animation 단축 속성을 쓰면 안 된다. 단축 속성은 명시하지 않은
+      animation-duration을 0s로 되돌려, 코드가 인라인으로 넣는 길이를
+      뒤엎을 위험이 있다. 롱핸드로만 지정한다.
+   2) width가 아니라 transform을 애니메이션한다. width는 매 프레임 레이아웃을
+      유발하고 퍼센트 해석이 부모에 의존해 불안정하다. */
 .nb-timer {
+  position: relative;
   width: 100%;
   max-width: 300px;
-  height: 6px;
+  height: 12px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--bg);
+  border: 1px solid var(--line);
   overflow: hidden;
   transition: opacity .15s;
 }
 
-.nb-timer.nb-timer-idle { opacity: .3; }
+.nb-timer.nb-timer-idle { opacity: .28; }
 
 .nb-timer-fill {
   display: block;
-  width: 0%;
+  width: 100%;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--lit));
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--lit) 70%, var(--err) 100%);
 }
 
-.nb-timer-fill.nb-run { animation: nbfill linear forwards; }
+.nb-timer-fill.nb-run {
+  animation-name: nbfill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+}
 
 /* 응답이 확정되면 막대를 멈춘다 — 남은 시간을 더 볼 이유가 없다 */
 .nb-timer.nb-timer-locked .nb-timer-fill {
   animation-play-state: paused;
   background: var(--ok);
-  opacity: .55;
+  opacity: .5;
 }
 
-@keyframes nbfill { from { width: 0%; } to { width: 100%; } }
+@keyframes nbfill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* 막대 위 눈금 — 채워지는 위치를 가늠할 기준선이 있어야 흐름이 읽힌다 */
+.nb-timer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(90deg, var(--line-soft) 0 1px, transparent 1px);
+  background-size: 25% 100%;
+  background-position: 25% 0;
+  background-repeat: repeat-x;
+  opacity: .8;
+}
 
 /* 응답 키 */
 .nb-keys {
@@ -702,20 +736,35 @@ kbd {
 .wt-dot.on { background: var(--accent); transform: scale(1.35); }
 .wt-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.wt-body { font-size: 14.5px; max-width: 60ch; }
+/* 스텝마다 글 길이와 그림 높이가 달라 버튼이 위아래로 튀면 누르기 불편하다.
+   본문과 예시 영역에 고정 높이를 주어 '다음' 위치를 한자리에 묶는다. */
+.wt-body {
+  font-size: 14.5px;
+  max-width: 60ch;
+  min-height: 4.9em;           /* 3줄분 — 가장 긴 스텝 기준 */
+  margin-bottom: 0;
+}
 
 .wt-demo {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 22px 16px;
-  margin: 20px 0 4px;
+  height: 208px;               /* 그림 유무·크기와 무관하게 고정 */
+  padding: 16px;
+  margin: 18px 0 4px;
   background: var(--bg-soft);
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  overflow-x: auto;
+  overflow: auto;
 }
 
+/* 그림이 없는 스텝도 자리를 비워 둔다 — 숨기면 버튼이 올라온다 */
+.wt-demo:empty { border-style: dashed; opacity: .45; }
+
 .wt-nav { align-items: center; }
+
+/* 마지막 스텝의 안내문이 버튼을 밀어내지 않도록 높이를 예약한다 */
+.wt-slot { min-height: 66px; }
 .wt-count {
   font-family: var(--mono);
   font-size: 12.5px;
@@ -855,5 +904,5 @@ kbd {
   }
 
   /* 설명 화면의 타이머 시연은 무한 반복이라 정지시킨다 (본 검사는 유지) */
-  .wt-timerdemo .nb-timer-fill { animation: none; width: 62%; }
+  .wt-timerdemo .nb-timer-fill { animation-name: none; transform: scaleX(.62); }
 }

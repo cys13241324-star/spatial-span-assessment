@@ -393,18 +393,13 @@
 
     this.onTrial(trial);
 
-    /* 피드백 — 연습에서만 정오를 알려준다 (본 시행 비피드백은 표준 절차) */
-    if (this._timedOut) {
-      this.onStatus({ kind: 'feedback', text: '시간 초과로 기록되었습니다', correct: null });
-    } else if (this.phase === 'practice') {
-      this.onStatus({
-        kind: 'feedback',
-        text: correct ? '정답입니다' : '오답입니다',
-        correct: correct
-      });
-    } else {
-      this.onStatus({ kind: 'feedback', text: '기록되었습니다', correct: null });
-    }
+    /* 정오는 알려주지 않는다 — 연습에서도. 맞았는지 알려주면 응시자가
+       그 정보로 다음 판단 기준을 바꿔 시행 간 독립성이 깨진다.
+       표시하는 것은 "입력이 접수되었는지" 뿐이다. */
+    this.onStatus({
+      kind: 'logged',
+      text: this._timedOut ? '무응답' : '응답'
+    });
 
     await sleep(CONFIG.postTrialMs);
     return trial;
@@ -492,8 +487,8 @@
 
   global.Tasks.register({
     id: 'spatial-span',
-    label: '도형 순서 기억 (Corsi span)',
-    subtitle: 'Corsi Block-Tapping · 시공간 작업기억 span',
+    label: '도형 순서 기억 (고전)',
+    subtitle: 'Corsi Block-Tapping · 시공간 작업기억 span · 고전 과제',
 
     consent: {
       measures: '<strong>시공간 작업기억 용량(span)</strong>을 측정합니다. 화면에 제시된 도형의 ' +
@@ -652,7 +647,7 @@
           '  ├ 1회 이상 정답 → 길이 +1 후 계속\n' +
           '  └ 2회 모두 오답 → 종료\n' +
           '자극 제시: 도형당 <b>1,000ms</b> 점등, 간격 <b>500ms</b>\n' +
-          '본 시행에서는 정답 여부를 알려주지 않음 (표준 비피드백 절차)\n\n' +
+          '정오 미고지 — 연습·본 시행 모두 (표준 비피드백 절차)\n\n' +
           '오입력 수정: 시행당 <b>1회</b>, 마지막 입력 후 <b>2초</b> 이내\n' +
           '입력 완료 후 <b>2초</b>의 확정 유예 (그 사이 취소 가능, 이후 자동 확정)\n' +
           '무응답 상한: <b>8초 + 순서당 2.5초</b> (초과 시 미완성으로 기록)',

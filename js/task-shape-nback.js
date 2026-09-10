@@ -5,7 +5,7 @@
    Corsi는 용량(span)을, 이쪽은 작업기억 갱신·감시(updating/monitoring)를 잰다.
 
    절차 (공개 자료 2건 대조)
-     · 중앙 카드 더미에 도형이 한 장씩 갱신. 별·반원·마름모 3종, 동일 색상
+     · 중앙 카드 더미에 도형이 한 장씩 갱신. 도형 5종, 동일 색상
      · 1라운드 2-back — 3번째 도형부터 판단
          2번째 전과 일치 → ←        불일치 → Space
      · 2라운드 2&3-back — 4번째 도형부터 판단
@@ -18,12 +18,20 @@
 (function (global) {
   'use strict';
 
-  /* ---------- 도형 3종 (자료가 명시한 그대로) ---------- */
+  /* ---------- 도형 5종 ----------
+     참고 자료의 원 검사는 3종이었다. 5종으로 늘리면 한 장이 담는 정보량이
+     늘어 기억 부하가 올라가고, 우연히 앞 카드와 겹칠 확률이 낮아져
+     비표적 자극을 만들 여지도 넓어진다. 앞 3개의 인덱스는 그대로 두었다 —
+     설명 화면의 예시가 이 인덱스를 참조하기 때문이다. */
   var SHAPES = [
     { id: 0, name: '별',    svg: '<svg viewBox="0 0 100 100"><polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/></svg>' },
     { id: 1, name: '반원',  svg: '<svg viewBox="0 0 100 100"><path d="M8 72a42 42 0 0 1 84 0z"/></svg>' },
-    { id: 2, name: '마름모', svg: '<svg viewBox="0 0 100 100"><polygon points="50,5 90,50 50,95 10,50"/></svg>' }
+    { id: 2, name: '마름모', svg: '<svg viewBox="0 0 100 100"><polygon points="50,5 90,50 50,95 10,50"/></svg>' },
+    { id: 3, name: '원',    svg: '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43"/></svg>' },
+    { id: 4, name: '삼각형', svg: '<svg viewBox="0 0 100 100"><polygon points="50,8 92,86 8,86"/></svg>' }
   ];
+
+  var SHAPE_COUNT = SHAPES.length;
 
   var KEY_LABEL = { two: '←', three: '→', none: 'Space' };
 
@@ -65,7 +73,8 @@
      라벨을 기록한다 — 채점은 스케줄이 아니라 이 기록을 따르므로 항상 정확하다.
      ============================================================ */
   function pickShape(want, back2, back3, dual, rng) {
-    var all = [0, 1, 2];
+    var all = [];
+    for (var a0 = 0; a0 < SHAPE_COUNT; a0++) all.push(a0);
 
     if (!dual) {
       if (want === 'two') return { shape: back2, label: 'two' };
@@ -88,7 +97,7 @@
     var dual = spec.nLevels.length > 1;
     var seq = [], labels = [];
 
-    for (var i = 0; i < nMax; i++) { seq.push(rng.int(3)); labels.push(null); }
+    for (var i = 0; i < nMax; i++) { seq.push(rng.int(SHAPE_COUNT)); labels.push(null); }
 
     var judged = spec.count - nMax;
     var schedule = [];
@@ -257,7 +266,7 @@
       setTimeout(function () { b.classList.remove('nb-hit'); }, 220);
     }
 
-    this.onStatus({ kind: 'responded', text: '입력됨 · ' + KEY_LABEL[key] });
+    this.onStatus({ kind: 'responded', text: '응답' });
   };
 
   /* ---------- 단일 자극 ---------- */
@@ -347,13 +356,16 @@
 
     this.onTrial(trial);
 
-    /* 도형과 공백은 위에서 이미 소비했다. 연습에서만 정오를 알려주고 잠시 멈춘다. */
+    /* 정오는 알려주지 않는다 — 연습에서도.
+       맞았는지 알려주면 응시자가 그 정보로 다음 판단 기준을 바꾸고(학습 효과),
+       시행 간 독립성이 깨져 d′가 능력이 아닌 적응 속도를 반영하게 된다.
+       표시하는 것은 "입력이 접수되었는지" 뿐이다. */
+    this.onStatus({
+      kind: 'logged',
+      text: resp === null ? '무응답' : '응답'
+    });
+
     if (this.phase === 'practice') {
-      this.onStatus({
-        kind: 'feedback',
-        text: correct ? '정답' : (resp === null ? '무응답' : '오답 · 정답은 ' + KEY_LABEL[label]),
-        correct: correct
-      });
       await sleep(CONFIG.postTrialFeedbackMs);
     }
 
@@ -486,7 +498,7 @@
     return html;
   }
 
-  /** 도형 3종 나열 */
+  /** 도형 전체 나열 */
   function shapeLegendHtml() {
     return '<div class="wt-legend">' +
       SHAPES.map(function (s) {
@@ -523,8 +535,8 @@
 
   global.Tasks.register({
     id: 'shape-nback',
-    label: '도형 순서 기억하기 (N-back)',
-    subtitle: '도형 N-back · 작업기억 갱신·감시',
+    label: '도형 순서 기억하기 (현행)',
+    subtitle: '도형 N-back · 작업기억 갱신·감시 · 현행 역검 대응',
 
     consent: {
       measures: '<strong>작업기억 갱신·감시 능력</strong>을 측정합니다. 도형이 한 장씩 갱신되는 동안 ' +
@@ -538,10 +550,10 @@
 
     walkthrough: [
       {
-        title: '도형은 세 종류뿐입니다',
-        body: '별 · 반원 · 마름모. 색과 크기는 모두 같습니다. 도형을 구별하는 것 자체는 ' +
-              '어렵지 않게 만들어 두었습니다 — 이 검사가 재는 것은 <strong>도형을 알아보는 능력이 아니라 ' +
-              '순서를 유지하며 갱신하는 능력</strong>입니다.',
+        title: '도형은 다섯 종류입니다',
+        body: '색과 크기는 모두 같고, 생김새만 다릅니다. 도형을 알아보는 것 자체는 ' +
+              '어렵지 않습니다 — 이 검사가 재는 것은 <strong>도형을 구별하는 능력이 아니라 ' +
+              '순서를 유지하며 계속 갈아치우는 능력</strong>입니다.',
         html: shapeLegendHtml()
       },
       {
@@ -620,7 +632,8 @@
 
     readyNote: '본 검사는 <strong>2라운드</strong>로 진행됩니다. 1라운드는 2-back(자극 ' +
                CONFIG.rounds[0].count + '개), 2라운드는 2&amp;3-back(자극 ' + CONFIG.rounds[1].count + '개)입니다. ' +
-               '연습과 달리 <strong>정답 여부를 알려드리지 않으며, 한 번 누른 응답은 취소할 수 없습니다.</strong>',
+               '<strong>정답 여부는 연습에서도 본 검사에서도 알려드리지 않습니다.</strong> ' +
+               '화면에는 응답이 접수되었는지만 표시되며, 한 번 누른 응답은 취소할 수 없습니다.',
 
     create: function (o) { return new ShapeNbackTask(o); },
     score: function (liveTrials) { return Scoring.shapeNback(liveTrials); },
@@ -697,6 +710,13 @@
         '<strong>전략 문제</strong>일 수 있어 리포트에서 구분해야 합니다.' +
         '</div>';
 
+      html += '<div class="callout">' +
+        '<strong>정오는 응시 중에 알려주지 않았습니다.</strong> 맞았는지 알려주면 응시자가 그 정보로 ' +
+        '판단 기준을 바꿔(학습 효과) 시행 간 독립성이 깨지고, d′가 능력이 아닌 적응 속도를 ' +
+        '반영하게 됩니다. 대신 <strong>이 리포트에서 자극별 정답과 판정을 전부 공개</strong>합니다 — ' +
+        '이의제기와 인적 재검토에 쓸 근거가 남아야 하기 때문입니다.' +
+        '</div>';
+
       return html;
     },
 
@@ -750,8 +770,9 @@
 
       return {
         measures: '<strong>작업기억 갱신·감시</strong>를 측정했습니다. 사용한 절차는 도형 N-back이며, ' +
-                  '채점은 신호탐지이론의 민감도 지표 d′를 따릅니다. 도형을 세 종류로만 제한한 것은 ' +
-                  '자극 자체의 변별 난이도가 아니라 <strong>기억 갱신의 부하</strong>를 재기 위한 것입니다.',
+                  '채점은 신호탐지이론의 민감도 지표 d′를 따릅니다. 도형을 ' + SHAPE_COUNT + '종으로 한정하고 ' +
+                  '색·크기를 같게 둔 것은 <strong>자극을 알아보는 난이도가 아니라 기억 갱신의 부하</strong>를 ' +
+                  '재기 위한 것입니다.',
         procedure:
           '1라운드 <b>2-back</b> — 자극 ' + CONFIG.rounds[0].count + '개, 3번째부터 판단\n' +
           '  2번째 전과 일치 → <b>←</b>        불일치 → <b>Space</b>\n\n' +
@@ -759,7 +780,7 @@
           '  2번째 전 일치 → <b>←</b>   3번째 전 일치 → <b>→</b>   둘 다 아님 → <b>Space</b>\n\n' +
           '노출 시간 <b>' + CONFIG.stimulusMs.toLocaleString() + 'ms</b> (= 응답 허용 창), 갱신 간격 <b>' + CONFIG.isiMs + 'ms</b>\n' +
           '표적 비율: 1라운드 약 <b>32%</b>, 2라운드 2-back <b>20%</b> + 3-back <b>20%</b>\n' +
-          '본 시행에서는 정답 여부를 알려주지 않음\n\n' +
+          '정오 미고지 — 연습·본 시행 모두. 화면에는 응답/무응답만 표시\n\n' +
           '자극열은 현재 도형이 2번째 전과 3번째 전에 <b>동시에</b> 일치하지 않도록 생성됩니다.\n' +
           '정답이 두 개가 되는 문항을 원천적으로 배제하기 위한 것입니다.',
         formula: formula,

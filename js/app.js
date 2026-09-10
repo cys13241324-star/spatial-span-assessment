@@ -75,7 +75,7 @@
     renderWalkthrough();
 
     els.readyNote.innerHTML = desc.readyNote ||
-      '본 시행에서는 정답 여부를 알려드리지 않습니다.';
+      '정답 여부는 어느 단계에서도 알려드리지 않습니다.';
 
     els.agree.checked = false;
     els.btnToTutorial.disabled = true;
@@ -110,8 +110,9 @@
     els.wtTitle.textContent = s.title;
     els.wtBody.innerHTML = s.body;
 
+    /* 그림이 없어도 요소를 숨기지 않는다 — 숨기면 '다음' 버튼이 올라와
+       스텝마다 위치가 바뀌고 누르기 불편해진다. CSS가 자리를 지킨다. */
     els.wtDemo.innerHTML = s.html || '';
-    els.wtDemo.hidden = !s.html;
 
     els.wtCount.textContent = (i + 1) + ' / ' + steps.length;
     els.wtDots.innerHTML = steps.map(function (_, k) {
@@ -207,17 +208,18 @@
         renderPips(0, 0);
         fb.className = 'feedback info'; fb.textContent = '';
         break;
+      /* 응답 접수 여부만 표시한다. 정오는 어느 단계에서도 노출하지 않는다 —
+         알려주면 응시자가 판단 기준을 바꿔 시행 간 독립성이 깨진다. */
       case 'responded':
         fb.className = 'feedback info'; fb.textContent = s.text;
         break;
-      case 'feedback':
-        fb.className = 'feedback ' +
-          (s.correct === true ? 'ok' : s.correct === false ? 'err' : 'info');
+      case 'logged':
+        fb.className = 'feedback ' + (s.text === '무응답' ? 'muted' : 'info');
         fb.textContent = s.text;
         break;
       case 'timeout':
         renderPips(0, 0);
-        fb.className = 'feedback err'; fb.textContent = s.text;
+        fb.className = 'feedback muted'; fb.textContent = '무응답';
         break;
       case 'done':
         renderPips(0, 0);
