@@ -13,6 +13,7 @@
     rng: null,
     task: null,
     timing: null,
+    wtStep: 0,
     progA: null,
     progB: null,
     liveFrom: null,
@@ -33,7 +34,8 @@
     [
       'taskLabel', 'sessionLabel', 'pickList',
       'cMeasures', 'cScoring', 'cCollects', 'agree', 'btnToTutorial',
-      'briefTitle', 'briefSteps', 'btnToPractice',
+      'wtEyebrow', 'wtDots', 'wtTitle', 'wtBody', 'wtDemo', 'wtLast',
+      'wtPrev', 'wtNext', 'wtCount', 'btnToPractice',
       'phaseBadge', 'taskStatus', 'progA', 'progB', 'taskStage',
       'pips', 'inputControls', 'btnUndo', 'btnSubmit', 'undoNote', 'feedback',
       'readyNote', 'btnToLive', 'reportBody', 'explainBody'
@@ -69,11 +71,8 @@
     els.cScoring.innerHTML = desc.consent.scoring;
     els.cCollects.innerHTML = desc.consent.collects;
 
-    els.briefTitle.textContent = desc.label;
-    els.briefSteps.innerHTML = desc.brief.map(function (s, i) {
-      return '<li><span class="num">' + (i + 1) + '</span>' +
-             '<div><h3>' + s.h + '</h3><p>' + s.p + '</p></div></li>';
-    }).join('');
+    state.wtStep = 0;
+    renderWalkthrough();
 
     els.readyNote.innerHTML = desc.readyNote ||
       '본 시행에서는 정답 여부를 알려드리지 않습니다.';
@@ -92,6 +91,47 @@
     state.rng = new Core.Rng(state.session.seed);
     els.sessionLabel.textContent = state.session.id;
     console.log('[session] 시작', state.session);
+  }
+
+  /* ============================================================
+     과제 설명 — 스텝별 진행
+
+     셸은 예시 그림의 내용을 알지 않는다. 과제가 만든 html을 그리고,
+     넘기기와 진행 표시만 담당한다.
+     ============================================================ */
+  function renderWalkthrough() {
+    var steps = state.desc.walkthrough;
+    var i = Math.max(0, Math.min(state.wtStep, steps.length - 1));
+    state.wtStep = i;
+    var s = steps[i];
+    var last = i === steps.length - 1;
+
+    els.wtEyebrow.textContent = state.desc.label;
+    els.wtTitle.textContent = s.title;
+    els.wtBody.innerHTML = s.body;
+
+    els.wtDemo.innerHTML = s.html || '';
+    els.wtDemo.hidden = !s.html;
+
+    els.wtCount.textContent = (i + 1) + ' / ' + steps.length;
+    els.wtDots.innerHTML = steps.map(function (_, k) {
+      return '<button type="button" class="wt-dot' + (k === i ? ' on' : '') +
+             '" data-step="' + k + '" aria-label="' + (k + 1) + '단계"></button>';
+    }).join('');
+
+    els.wtPrev.textContent = i === 0 ? '고지로 돌아가기' : '이전';
+    els.wtNext.hidden = last;
+    els.btnToPractice.hidden = !last;
+    els.wtLast.hidden = !last;
+  }
+
+  function wtGo(delta) {
+    var steps = state.desc.walkthrough;
+    var next = state.wtStep + delta;
+    if (next < 0) { App.show('screen-consent'); return; }
+    if (next >= steps.length) return;
+    state.wtStep = next;
+    renderWalkthrough();
   }
 
   /* ---------- 상태 표시 ---------- */
@@ -282,7 +322,26 @@
     });
 
     els.btnToTutorial.addEventListener('click', function () {
+      state.wtStep = 0;
+      renderWalkthrough();
       App.show('screen-tutorial');
+    });
+
+    /* 설명 스텝 넘기기 */
+    els.wtNext.addEventListener('click', function () { wtGo(1); });
+    els.wtPrev.addEventListener('click', function () { wtGo(-1); });
+    els.wtDots.addEventListener('click', function (e) {
+      var d = e.target.closest('.wt-dot');
+      if (!d) return;
+      state.wtStep = parseInt(d.getAttribute('data-step'), 10);
+      renderWalkthrough();
+    });
+
+    /* 설명 화면에서는 방향키로도 넘긴다 — 어차피 과제에서 쓰는 키다 */
+    document.addEventListener('keydown', function (e) {
+      if (!document.getElementById('screen-tutorial').classList.contains('active')) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); wtGo(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); wtGo(-1); }
     });
 
     els.btnToPractice.addEventListener('click', function () {

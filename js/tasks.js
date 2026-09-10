@@ -10,7 +10,8 @@
    label       과제 이름
    subtitle    상단바에 표시되는 원본 과제명 · 측정 구인
    consent     { measures, scoring, collects }  사전고지 문구
-   brief       [ { h, p } ]  과제 설명 단계 (순서가 의미를 가짐)
+   walkthrough [ { title, body, html } ]  스텝별 설명. html은 과제가 만든 예시 그림
+                (셸은 그림의 내용을 모른다 — 넘기고 그리기만 한다)
    readyNote   본 검사 시작 화면의 추가 경고 (HTML, 없으면 null)
    create(o)   과제 인스턴스 생성. o = { stage, rng, phase, onTrial, onStatus }
                인스턴스는 runPractice() / runLive() / abort() 를 가진다
@@ -24,7 +25,7 @@
 (function (global) {
   'use strict';
 
-  var REQUIRED = ['id', 'label', 'subtitle', 'consent', 'brief',
+  var REQUIRED = ['id', 'label', 'subtitle', 'consent', 'walkthrough',
                   'create', 'score', 'normKey', 'tiles', 'logTable', 'explain'];
 
   var registry = {};

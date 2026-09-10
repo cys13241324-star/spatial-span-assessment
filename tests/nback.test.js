@@ -60,6 +60,15 @@ load('js/scoring.js');
 load('js/task-shape-nback.js');
 
 const C = ShapeNbackTask.CONFIG;
+
+/* 뒤쪽 섹션이 절차를 가속하려고 CONFIG를 덮어쓴다. 배포되는 값 자체를
+   검증해야 하므로 로드 시점의 원본을 따로 붙잡아 둔다. */
+const SHIPPED = {
+  stimulusMs: C.stimulusMs,
+  isiMs: C.isiMs,
+  responseWindowMs: C.responseWindowMs,
+  rounds: JSON.parse(JSON.stringify(C.rounds))
+};
 let pass = 0, fail = 0;
 function check(name, cond, extra) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
@@ -384,7 +393,7 @@ console.log('\n[7] 레지스트리 계약');
       .every(k => typeof d[k] === 'function'));
   check('사전고지 3항목 존재',
     !!(d.consent.measures && d.consent.scoring && d.consent.collects));
-  check('과제 설명 단계가 4개', d.brief.length === 4, String(d.brief.length));
+  check('설명 스텝이 10개', d.walkthrough.length === 10, String(d.walkthrough.length));
 
   const s = Scoring.shapeNback([
     { correct: true, rtFirstMs: 900, taskFields: { round: 1, judged: true, condition: 'two', responseKey: 'two' } },
@@ -396,6 +405,140 @@ console.log('\n[7] 레지스트리 계약');
     try { Tasks.register({ id: 'shape-nback' }); return false; }
     catch (e) { return /중복|필수/.test(e.message); }
   })());
+}
+
+/* ============================================================
+   8. 타이밍 — 노출과 응답 허용 창의 분리
+   ============================================================ */
+console.log('\n[8] 타이밍 분리 — 도형은 넘어가도 판단은 받는다');
+{
+  check('노출 1,500ms', SHIPPED.stimulusMs === 1500, String(SHIPPED.stimulusMs));
+  check('응답 허용 = 노출 + 공백',
+    SHIPPED.responseWindowMs === SHIPPED.stimulusMs + SHIPPED.isiMs,
+    String(SHIPPED.responseWindowMs));
+  check('응답 허용 창이 노출보다 길다', SHIPPED.responseWindowMs > SHIPPED.stimulusMs);
+
+  /* 노출을 줄인 만큼 시행 수를 늘려 d′의 표준오차를 지켰는지 */
+  const judged1 = SHIPPED.rounds[0].count - 2;
+  const judged2 = SHIPPED.rounds[1].count - 3;
+  const targets2back = Math.round(judged2 * SHIPPED.rounds[1].targetRates.two);
+  const targets3back = Math.round(judged2 * SHIPPED.rounds[1].targetRates.three);
+  check('1라운드 판단 시행 30회 이상', judged1 >= 30, String(judged1));
+  check('2라운드 조건별 표적 7개 이상',
+    targets2back >= 7 && targets3back >= 7, targets2back + ' / ' + targets3back);
+
+  /* 실제 응시 시간 추정 — 너무 길어지면 응시자가 지친다 */
+  const soa = SHIPPED.responseWindowMs;
+  const liveSec = (SHIPPED.rounds[0].count + SHIPPED.rounds[1].count) * soa / 1000;
+  check('본 검사 소요가 3분 이내', liveSec <= 180, Math.round(liveSec) + '초');
+}
+
+/* 도형이 사라진 뒤(공백 구간) 누른 입력도 채택되는지 실제 시간으로 확인한다.
+   이 분리가 깨지면 노출을 줄인 만큼 응답 시간도 깎여, 작업기억이 아닌
+   손 속도를 재게 된다. */
+{
+  const real = {
+    s: C.stimulusMs, i: C.isiMs, w: C.responseWindowMs,
+    p: C.preRoundMs, f: C.postTrialFeedbackMs
+  };
+  C.stimulusMs = 120; C.isiMs = 80; C.responseWindowMs = 200;
+  C.preRoundMs = 2; C.postTrialFeedbackMs = 2;
+
+  const logged = [];
+  const task = newTask('live', t => logged.push(t));
+  let clearedAt = null;
+
+  const baseClear = task._clearShape.bind(task);
+  task._clearShape = function () {
+    if (clearedAt === null) clearedAt = Date.now();
+    baseClear();
+  };
+
+  const base = task.onStatus;
+  let armed = true;
+  task.onStatus = function (s) {
+    base(s);
+    if (s.kind === 'respond' && armed) {
+      armed = false;
+      /* 노출(120ms)이 끝난 뒤 = 공백 구간에 누른다 */
+      setTimeout(() => task._respond('none', 'keyboard'), 150);
+    }
+  };
+
+  await task._runRound({ round: 1, nLevels: [2], count: 3, targetRates: { two: 0 } });
+  task.destroy();
+
+  check('도형이 노출 종료 시점에 사라진다', clearedAt !== null);
+  check('도형이 사라진 뒤 누른 입력도 채택됨',
+    logged.length > 0 && logged[0].taskFields.responseKey === 'none',
+    logged.length ? String(logged[0].taskFields.responseKey) : '로그 없음');
+  check('공백 구간 입력이 무응답으로 처리되지 않음',
+    logged.length > 0 && logged[0].timedOut === false);
+  check('반응시간이 노출 시간을 넘겨 기록됨',
+    logged.length > 0 && logged[0].rtFirstMs > 120,
+    logged.length ? String(logged[0].rtFirstMs) : '-');
+
+  C.stimulusMs = real.s; C.isiMs = real.i; C.responseWindowMs = real.w;
+  C.preRoundMs = real.p; C.postTrialFeedbackMs = real.f;
+}
+
+/* ============================================================
+   9. 설명 스텝
+   ============================================================ */
+console.log('\n[9] 설명 스텝 — 내용과 예시 그림');
+{
+  const d = Tasks.get('shape-nback');
+  const w = d.walkthrough;
+  const withDemo = w.filter(s => s.html);
+
+  check('모든 스텝에 제목과 본문', w.every(s => s.title && s.body));
+  check('스텝 제목이 모두 다름', new Set(w.map(s => s.title)).size === w.length);
+  check('예시 그림이 있는 스텝이 8개 이상', withDemo.length >= 8, String(withDemo.length));
+
+  check('카드 띠 · 도형 나열 · 키 안내가 모두 등장',
+    w.some(s => s.html && s.html.includes('wt-strip')) &&
+    w.some(s => s.html && s.html.includes('wt-legend')) &&
+    w.some(s => s.html && s.html.includes('wt-keys')));
+  check('타이머 시연 스텝 존재', w.some(s => s.html && s.html.includes('nb-timer')));
+
+  /* 열린 태그는 레이아웃을 깨뜨린다 */
+  const badSvg = withDemo.filter(s =>
+    (s.html.match(/<svg/g) || []).length !== (s.html.match(/<\/svg>/g) || []).length);
+  check('예시 그림의 svg 태그가 모두 닫힘', badSvg.length === 0, String(badSvg.length));
+
+  const badDiv = withDemo.filter(s =>
+    (s.html.match(/<div/g) || []).length !== (s.html.match(/<\/div>/g) || []).length);
+  check('예시 그림의 div 태그가 모두 닫힘', badDiv.length === 0, String(badDiv.length));
+
+  /* 설명의 정답이 실제 규칙과 어긋나면 응시자를 오도한다 */
+  check('2-back 일치 예시가 ←를 정답으로 제시', /정답은 <kbd>←<\/kbd>/.test(w[2].html));
+  check('불일치 예시가 Space를 정답으로 제시', /정답은 <kbd>Space<\/kbd>/.test(w[3].html));
+  check('3-back 예시가 →를 정답으로 제시', /정답은 <kbd>→<\/kbd>/.test(w[5].html));
+  check('2라운드 2-back 예시가 ←를 정답으로 제시', /정답은 <kbd>←<\/kbd>/.test(w[6].html));
+
+  /* 카드 띠 예시의 도형 배열이 제시한 정답과 실제로 맞는지 검산 */
+  function idsOf(html) {
+    return [...html.matchAll(/data-state="[^"]*"><span class="wt-i">(\d+)<\/span>(<svg[\s\S]*?<\/svg>)/g)]
+      .map(m => {
+        const svg = m[2];
+        return ShapeNbackTask.SHAPES.findIndex(sh => sh.svg === svg);
+      });
+  }
+  const ex2 = idsOf(w[2].html);
+  check('2-back 예시: 3번 카드가 1번과 같은 도형',
+    ex2.length === 3 && ex2[2] === ex2[0], JSON.stringify(ex2));
+  const ex3 = idsOf(w[3].html);
+  check('불일치 예시: 3번 카드가 1번과 다른 도형',
+    ex3.length === 3 && ex3[2] !== ex3[0], JSON.stringify(ex3));
+  const ex6 = idsOf(w[5].html);
+  check('3-back 예시: 4번 카드가 1번과 같고 2번과 다름',
+    ex6.length === 4 && ex6[3] === ex6[0] && ex6[3] !== ex6[1], JSON.stringify(ex6));
+  const ex7 = idsOf(w[6].html);
+  check('2라운드 2-back 예시: 4번이 2번과 같고 1번과 다름',
+    ex7.length === 4 && ex7[3] === ex7[1] && ex7[3] !== ex7[0], JSON.stringify(ex7));
+
+  check('마지막 스텝이 찍기 경고', /찍|남발/.test(w[w.length - 1].title + w[w.length - 1].body));
+  check('설명에 갱신 시간 1.5초 명시', w.some(s => /1\.5초/.test(s.body)));
 }
 
 console.log('\n' + '='.repeat(52));

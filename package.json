@@ -4,7 +4,7 @@
   "description": "Corsi Block-Tapping (spatial span) assessment prototype - seeded stimuli, trial-level logging, norm gating, automated-decision explanation",
   "private": true,
   "scripts": {
-    "test": "node tests/logic.test.js && node tests/task.test.js && node tests/nback.test.js"
+    "test": "node tests/logic.test.js && node tests/task.test.js && node tests/nback.test.js && node tests/wire.check.js"
   },
   "license": "MIT"
 }

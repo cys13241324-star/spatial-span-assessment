@@ -10,7 +10,7 @@
          2번째 전과 일치 → ←        불일치 → Space
      · 2라운드 2&3-back — 4번째 도형부터 판단
          2번째 전 일치 → ←   3번째 전 일치 → →   둘 다 아님 → Space
-     · 도형당 약 3초, 전체 약 5분
+     · 도형당 1.5초 노출 후 갱신, 판단은 공백까지 1.8초 허용
 
    채점: 조건별 d′ (신호탐지이론). 정답률 단독으로는 민감도와 반응편향이
    섞여, 아무 때나 화살표를 누르는 응시자를 걸러내지 못한다.
@@ -29,19 +29,30 @@
 
   var CONFIG = {
     taskId: 'shape-nback',
-    stimulusMs: 3000,      // 도형 노출 = 응답 허용 창
-    isiMs: 300,            // 갱신 사이 공백
+
+    /* ---- 타이밍 ----
+       노출 시간과 응답 허용 창을 분리해 둔다. 도형은 stimulusMs에 넘어가지만
+       판단은 그 뒤 공백 구간까지 받는다. 둘을 묶어 두면 노출을 줄이는 순간
+       응답 시간도 같이 깎여, 작업기억이 아닌 손 속도를 재게 된다.
+       실제 응답 허용 = stimulusMs + isiMs (= responseWindowMs) */
+    stimulusMs: 1500,      // 도형 노출 — 이 시점에 다음 도형으로 넘어간다
+    isiMs: 300,            // 갱신 사이 공백 (이 구간에도 응답 가능)
     preRoundMs: 1200,
     postTrialFeedbackMs: 700,   // 연습에서만 사용
 
+    /* 노출이 1.5초로 짧아진 만큼 같은 응시 시간에 더 많은 자극을 넣는다.
+       d′의 표준오차는 시행 수에 직접 좌우되므로, 조건별 표적 수를 늘리는 것이
+       측정 정밀도에 그대로 반영된다. */
     rounds: [
-      { round: 1, nLevels: [2], count: 24, targetRates: { two: 0.32 } },
-      { round: 2, nLevels: [2, 3], count: 28, targetRates: { two: 0.20, three: 0.20 } }
+      { round: 1, nLevels: [2], count: 36, targetRates: { two: 0.32 } },
+      { round: 2, nLevels: [2, 3], count: 44, targetRates: { two: 0.20, three: 0.20 } }
     ],
-    practice: { round: 1, nLevels: [2], count: 10, targetRates: { two: 0.375 } },
+    practice: { round: 1, nLevels: [2], count: 12, targetRates: { two: 0.33 } },
 
     maxGenAttempts: 40     // 표적 비율이 크게 어긋나면 재생성
   };
+
+  CONFIG.responseWindowMs = CONFIG.stimulusMs + CONFIG.isiMs;
 
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
@@ -152,6 +163,9 @@
           '<span class="nb-card nb-b1"></span>' +
           '<span class="nb-card nb-top" id="nbTop"></span>' +
         '</div>' +
+        '<div class="nb-timer" id="nbTimer" role="timer" aria-label="남은 응답 시간">' +
+          '<span class="nb-timer-fill" id="nbTimerFill"></span>' +
+        '</div>' +
         '<div class="nb-keys" id="nbKeys">' +
           '<button type="button" class="nb-key" data-k="two" id="nbKeyTwo">' +
             '<b>←</b><span>2번째 전과 같음</span></button>' +
@@ -165,6 +179,8 @@
     this.elTop = this.stage.querySelector('#nbTop');
     this.elRule = this.stage.querySelector('#nbRule');
     this.elKeys = this.stage.querySelector('#nbKeys');
+    this.elTimer = this.stage.querySelector('#nbTimer');
+    this.elTimerFill = this.stage.querySelector('#nbTimerFill');
 
     this.elKeys.addEventListener('click', function (e) {
       var b = e.target.closest('.nb-key');
@@ -201,6 +217,27 @@
     this.elTop.classList.remove('nb-flip');
   };
 
+  /* ---------- 응답 시간 막대 ----------
+     남은 시간을 눈으로 볼 수 있어야 응시자가 "언제까지 눌러야 하는지"를 안다.
+     rAF 루프 대신 CSS 애니메이션을 쓴다 — 자극마다 재점화만 하면 되고,
+     prefers-reduced-motion에서는 스타일시트가 알아서 정지시킨다. */
+  ShapeNbackTask.prototype._startTimer = function (ms) {
+    var f = this.elTimerFill;
+    if (!f || !f.style) return;
+    this.elTimer.classList.remove('nb-timer-idle', 'nb-timer-locked');
+    f.classList.remove('nb-run');
+    f.style.animationDuration = ms + 'ms';
+    void this.elTop.offsetWidth;          // 리플로우로 애니메이션 재시작
+    f.classList.add('nb-run');
+  };
+
+  ShapeNbackTask.prototype._stopTimer = function (idle) {
+    var f = this.elTimerFill;
+    if (!f || !f.style) return;
+    f.classList.remove('nb-run');
+    if (idle) this.elTimer.classList.add('nb-timer-idle');
+  };
+
   /* ---------- 응답 ---------- */
   ShapeNbackTask.prototype._respond = function (key, via) {
     if (!this._open) return;
@@ -209,6 +246,9 @@
     this._responseVia = via;
     this._rt = Math.round(performance.now() - this._onsetAt);
     this._open = false;
+
+    /* 입력이 확정됐음을 막대에도 반영한다 — 남은 시간을 더 볼 이유가 없다 */
+    if (this.elTimer && this.elTimer.classList) this.elTimer.classList.add('nb-timer-locked');
 
     var btn = this.stage.querySelector('.nb-key[data-k="' + key + '"]');
     if (btn) {
@@ -235,23 +275,33 @@
     var tsClient = Date.now();
     this._showShape(shapeId);
 
+    if (judged) this._startTimer(CONFIG.responseWindowMs);
+    else this._stopTimer(true);
+
     this.onStatus({
       kind: judged ? 'respond' : 'warmup',
       text: judged ? '판단하세요' : '아직 판단하지 않습니다',
       index: pos + 1,
       total: ctx.seq.length,
-      round: ctx.round
+      round: ctx.round,
+      windowMs: judged ? CONFIG.responseWindowMs : null
     });
 
+    /* 노출 구간 — 이 시점에 다음 도형으로 넘어간다 */
     await sleep(CONFIG.stimulusMs);
     if (this._aborted) return null;
-    this._open = false;
+    this._clearShape();
 
     if (!judged) {
-      this._clearShape();
       await sleep(CONFIG.isiMs);
       return null;                            // 판단 대상 아님 — 로그 제외
     }
+
+    /* 공백 구간 — 도형은 사라졌지만 판단은 계속 받는다 */
+    await sleep(CONFIG.isiMs);
+    if (this._aborted) return null;
+    this._open = false;
+    this._stopTimer(false);
 
     /* 채점 */
     var resp = this._response;
@@ -297,17 +347,14 @@
 
     this.onTrial(trial);
 
+    /* 도형과 공백은 위에서 이미 소비했다. 연습에서만 정오를 알려주고 잠시 멈춘다. */
     if (this.phase === 'practice') {
       this.onStatus({
         kind: 'feedback',
         text: correct ? '정답' : (resp === null ? '무응답' : '오답 · 정답은 ' + KEY_LABEL[label]),
         correct: correct
       });
-      this._clearShape();
       await sleep(CONFIG.postTrialFeedbackMs);
-    } else {
-      this._clearShape();
-      await sleep(CONFIG.isiMs);
     }
 
     return trial;
@@ -384,6 +431,96 @@
   };
   var COND_KO = { two: '2번째 전 일치', three: '3번째 전 일치', none: '불일치' };
 
+  /* ============================================================
+     설명용 예시 그림 — 실제 자극과 같은 도형을 쓴다.
+     말로 "2번째 전"을 설명하는 것보다 카드 띠에 표시해 보이는 게 빠르다.
+     ============================================================ */
+  var CARD = 54, GAP = 10, PITCH = CARD + GAP;
+
+  function cardHtml(shapeId, index, state) {
+    return '<div class="wt-c" data-state="' + state + '">' +
+             '<span class="wt-i">' + index + '</span>' +
+             SHAPES[shapeId].svg +
+           '</div>';
+  }
+
+  /**
+   * 카드 띠 + 비교 관계 표시 + 정답 키.
+   * link를 주면 두 카드를 잇는 괄호를 아래에 그린다.
+   */
+  function stripHtml(shapes, opts) {
+    opts = opts || {};
+    var focus = opts.focus;
+    var link = opts.link;                 // { from, to, label }
+    var html = '<div class="wt-strip">';
+
+    html += '<div class="wt-cards">';
+    shapes.forEach(function (s, i) {
+      var state = 'plain';
+      if (focus != null && i === focus) state = 'focus';
+      else if (link && (i === link.from)) state = 'link';
+      else if (focus != null && i > focus) state = 'ghost';
+      html += cardHtml(s, i + 1, state);
+    });
+    html += '</div>';
+
+    if (link) {
+      var w = PITCH * (shapes.length - 1) + CARD;
+      var x1 = CARD / 2 + link.from * PITCH;
+      var x2 = CARD / 2 + link.to * PITCH;
+      var mid = (x1 + x2) / 2;
+      html +=
+        '<svg class="wt-link" width="' + w + '" height="36" viewBox="0 0 ' + w + ' 36" aria-hidden="true">' +
+          '<path d="M ' + x1 + ' 3 V 16 H ' + x2 + ' V 3" fill="none" stroke="currentColor" ' +
+            'stroke-width="1.5" stroke-linejoin="round"></path>' +
+          '<text x="' + mid + '" y="31" text-anchor="middle" fill="currentColor">' +
+            esc(link.label) + '</text>' +
+        '</svg>';
+    }
+
+    if (opts.verdict) {
+      html += '<p class="wt-verdict">' + opts.verdict + '</p>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /** 도형 3종 나열 */
+  function shapeLegendHtml() {
+    return '<div class="wt-legend">' +
+      SHAPES.map(function (s) {
+        return '<div class="wt-l"><div class="wt-l-art">' + s.svg + '</div>' +
+               '<span>' + s.name + '</span></div>';
+      }).join('') +
+    '</div>';
+  }
+
+  /** 응답 키 안내 */
+  function keyLegendHtml(dual) {
+    var rows = [
+      ['←', '2번째 전과 같음'],
+      ['→', '3번째 전과 같음'],
+      ['Space', '둘 다 아님']
+    ];
+    if (!dual) rows = [rows[0], ['Space', '다름']];
+    return '<div class="wt-keys">' +
+      rows.map(function (r) {
+        return '<div class="wt-k"><b>' + r[0] + '</b><span>' + r[1] + '</span></div>';
+      }).join('') +
+    '</div>';
+  }
+
+  /** 응답 시간 막대 시연 */
+  function timerDemoHtml() {
+    return '<div class="wt-timerdemo">' +
+      '<div class="nb-timer"><span class="nb-timer-fill nb-run" ' +
+        'style="animation-duration:' + CONFIG.responseWindowMs + 'ms;animation-iteration-count:infinite"></span></div>' +
+      '<p class="wt-timernote">막대가 다 차면 기회가 끝납니다 · ' +
+        (CONFIG.responseWindowMs / 1000).toFixed(1) + '초</p>' +
+    '</div>';
+  }
+
   global.Tasks.register({
     id: 'shape-nback',
     label: '도형 순서 기억하기 (N-back)',
@@ -399,14 +536,90 @@
                 '수집합니다. <strong>영상·음성·생체정보는 수집하지 않습니다.</strong>'
     },
 
-    brief: [
-      { h: '관찰', p: '중앙 카드 더미에 도형이 <strong>한 장씩 갱신</strong>됩니다. 별·반원·마름모 세 가지뿐이고 색은 같습니다.' },
-      { h: '1라운드 · 2-back', p: '<strong>3번째 도형부터</strong> 판단합니다. 현재 도형이 <strong>2번째 전</strong>과 같으면 <kbd>←</kbd>, 다르면 <kbd>Space</kbd>.' },
-      { h: '2라운드 · 2&3-back', p: '<strong>4번째 도형부터</strong>. <strong>2번째 전</strong> 일치는 <kbd>←</kbd>, <strong>3번째 전</strong> 일치는 <kbd>→</kbd>, 둘 다 아니면 <kbd>Space</kbd>.' },
-      { h: '제한', p: '도형이 보이는 <strong>약 3초</strong> 안에 눌러야 합니다. 넘기면 무응답으로 기록되며, 되돌릴 수 없습니다.' }
+    walkthrough: [
+      {
+        title: '도형은 세 종류뿐입니다',
+        body: '별 · 반원 · 마름모. 색과 크기는 모두 같습니다. 도형을 구별하는 것 자체는 ' +
+              '어렵지 않게 만들어 두었습니다 — 이 검사가 재는 것은 <strong>도형을 알아보는 능력이 아니라 ' +
+              '순서를 유지하며 갱신하는 능력</strong>입니다.',
+        html: shapeLegendHtml()
+      },
+      {
+        title: '카드가 한 장씩 갱신됩니다',
+        body: '가운데 더미의 맨 위 카드만 바뀝니다. 지나간 카드는 <strong>다시 볼 수 없습니다.</strong> ' +
+              '그래서 눈으로 비교하는 과제가 아니라, 머릿속에 최근 몇 장을 담아 두는 과제입니다.',
+        html: stripHtml([0, 1, 2, 1], {})
+      },
+      {
+        title: '1라운드 — 2번째 전과 비교합니다',
+        body: '현재 카드가 <strong>두 칸 전</strong> 카드와 같은 도형이면 <kbd>←</kbd>를 누릅니다. ' +
+              '아래 예에서 3번 카드는 1번 카드와 같은 별입니다.',
+        html: stripHtml([0, 1, 0], {
+          focus: 2,
+          link: { from: 0, to: 2, label: '2번째 전 — 같다' },
+          verdict: '정답은 <kbd>←</kbd>'
+        })
+      },
+      {
+        title: '다르면 Space입니다',
+        body: '3번 카드가 마름모, 두 칸 전인 1번 카드는 별입니다. 다르므로 <kbd>Space</kbd>를 누릅니다. ' +
+              '<strong>다를 때도 반드시 눌러야 합니다</strong> — 가만히 두면 무응답으로 오류 처리됩니다.',
+        html: stripHtml([0, 1, 2], {
+          focus: 2,
+          link: { from: 0, to: 2, label: '2번째 전 — 다르다' },
+          verdict: '정답은 <kbd>Space</kbd>'
+        })
+      },
+      {
+        title: '앞의 두 장은 판단하지 않습니다',
+        body: '비교할 대상이 아직 없기 때문입니다. 1·2번 카드는 그냥 보고 기억만 하고, ' +
+              '<strong>3번 카드부터</strong> 누르기 시작합니다.',
+        html: stripHtml([0, 1, 2, 1], { focus: 2 })
+      },
+      {
+        title: '2라운드 — 3번째 전이 추가됩니다',
+        body: '이제 <strong>두 칸 전과 세 칸 전</strong>을 함께 살펴야 합니다. ' +
+              '세 칸 전과 같으면 <kbd>→</kbd>입니다. 아래 예에서 4번 카드는 1번 카드와 같은 별입니다.',
+        html: stripHtml([0, 1, 2, 0], {
+          focus: 3,
+          link: { from: 0, to: 3, label: '3번째 전 — 같다' },
+          verdict: '정답은 <kbd>→</kbd>'
+        })
+      },
+      {
+        title: '2라운드에서도 두 칸 전이면 ←입니다',
+        body: '4번 카드가 반원이고 두 칸 전인 2번 카드도 반원입니다. 세 칸 전(1번, 별)과는 다릅니다. ' +
+              '따라서 <kbd>←</kbd>. 2라운드는 <strong>4번 카드부터</strong> 판단합니다.',
+        html: stripHtml([0, 1, 2, 1], {
+          focus: 3,
+          link: { from: 1, to: 3, label: '2번째 전 — 같다' },
+          verdict: '정답은 <kbd>←</kbd>'
+        })
+      },
+      {
+        title: '누를 수 있는 키는 셋입니다',
+        body: '키보드 방향키와 스페이스바를 쓰거나, 화면 아래 버튼을 눌러도 됩니다. ' +
+              '한 카드에 <strong>한 번만</strong> 입력되고, 누른 뒤에는 바꿀 수 없습니다.',
+        html: keyLegendHtml(true)
+      },
+      {
+        title: '시간 막대가 다 차면 넘어갑니다',
+        body: '카드는 <strong>' + (CONFIG.stimulusMs / 1000).toFixed(1) + '초</strong> 뒤 넘어가지만, ' +
+              '판단은 그 뒤 잠깐의 공백까지 <strong>' + (CONFIG.responseWindowMs / 1000).toFixed(1) + '초</strong> 동안 받습니다. ' +
+              '막대가 남은 시간을 보여줍니다.',
+        html: timerDemoHtml()
+      },
+      {
+        title: '찍으면 점수가 낮아집니다',
+        body: '이 검사는 맞힌 개수만 세지 않습니다. <strong>맞게 누른 비율과 틀리게 누른 비율을 함께</strong> ' +
+              '계산하기 때문에, 확신 없이 <kbd>←</kbd>를 남발하면 점수가 오히려 내려갑니다. ' +
+              '모르겠으면 <kbd>Space</kbd>가 낫습니다.',
+        html: null
+      }
     ],
 
-    readyNote: '본 검사는 <strong>2라운드</strong>로 진행됩니다. 1라운드는 2-back, 2라운드는 2&amp;3-back입니다. ' +
+    readyNote: '본 검사는 <strong>2라운드</strong>로 진행됩니다. 1라운드는 2-back(자극 ' +
+               CONFIG.rounds[0].count + '개), 2라운드는 2&amp;3-back(자극 ' + CONFIG.rounds[1].count + '개)입니다. ' +
                '연습과 달리 <strong>정답 여부를 알려드리지 않으며, 한 번 누른 응답은 취소할 수 없습니다.</strong>',
 
     create: function (o) { return new ShapeNbackTask(o); },
@@ -429,7 +642,7 @@
         });
       });
       if (s.noResponseTrials > 0) {
-        t.push({ label: '무응답', value: s.noResponseTrials, unit: '회', hint: '3초 내 미입력' });
+        t.push({ label: '무응답', value: s.noResponseTrials, unit: '회', hint: '허용 시간 내 미입력' });
       }
       return t;
     },
@@ -552,7 +765,7 @@
         formula: formula,
         rtNote: '반응시간(적중 시행 평균)은 <strong>점수에 반영되지 않았습니다.</strong> ' +
                 '브라우저·기기별 반응시간 계통 오차가 확인되어, 보정 근거가 쌓이기 전까지 참고 지표로만 보고합니다. ' +
-                '다만 무응답은 오류로 채점됩니다 — 3초 안에 판단하지 못한 것 자체가 과제 수행의 일부입니다.',
+                '다만 무응답은 오류로 채점됩니다 — 허용 시간 안에 판단하지 못한 것 자체가 과제 수행의 일부입니다.',
         extraRows: [
           ['판단 시행', s.judgedTrials + '건 (전체 자극 ' + s.totalTrials + '건 중)', '채점 대상'],
           ['무응답', s.noResponseTrials + '건', '오류로 채점'],

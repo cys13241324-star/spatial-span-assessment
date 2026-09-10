@@ -606,6 +606,39 @@ kbd {
   to   { transform: scale(1); opacity: 1; }
 }
 
+/* ---------- 응답 시간 막대 ----------
+   남은 시간을 눈으로 볼 수 있게 채워지는 막대. 자극마다 재점화된다. */
+.nb-timer {
+  width: 100%;
+  max-width: 300px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  transition: opacity .15s;
+}
+
+.nb-timer.nb-timer-idle { opacity: .3; }
+
+.nb-timer-fill {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--lit));
+}
+
+.nb-timer-fill.nb-run { animation: nbfill linear forwards; }
+
+/* 응답이 확정되면 막대를 멈춘다 — 남은 시간을 더 볼 이유가 없다 */
+.nb-timer.nb-timer-locked .nb-timer-fill {
+  animation-play-state: paused;
+  background: var(--ok);
+  opacity: .55;
+}
+
+@keyframes nbfill { from { width: 0%; } to { width: 100%; } }
+
 /* 응답 키 */
 .nb-keys {
   display: flex;
@@ -641,6 +674,153 @@ kbd {
 .nb-key span { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
 .nb-key.nb-hit span { color: rgba(11,18,32,.7); }
 
+/* ============================================================
+   과제 설명 — 스텝별
+   ============================================================ */
+.wt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.wt-head .eyebrow { margin: 0; }
+
+.wt-dots { display: flex; gap: 6px; }
+
+.wt-dot {
+  width: 8px; height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.wt-dot:hover { background: var(--ink-faint); }
+.wt-dot.on { background: var(--accent); transform: scale(1.35); }
+.wt-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wt-body { font-size: 14.5px; max-width: 60ch; }
+
+.wt-demo {
+  display: flex;
+  justify-content: center;
+  padding: 22px 16px;
+  margin: 20px 0 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.wt-nav { align-items: center; }
+.wt-count {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+
+/* ---------- 카드 띠 예시 ---------- */
+.wt-strip { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+.wt-cards { display: flex; gap: 10px; }
+
+.wt-c {
+  position: relative;
+  width: 54px; height: 54px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+}
+.wt-c svg { width: 46%; height: 46%; }
+.wt-c svg polygon, .wt-c svg path { fill: var(--ink-dim); }
+
+.wt-c[data-state="focus"] {
+  background: var(--lit);
+  border-color: #ffe9a8;
+  box-shadow: 0 0 18px rgba(255, 215, 106, .3);
+}
+.wt-c[data-state="focus"] svg polygon,
+.wt-c[data-state="focus"] svg path { fill: #4a3800; }
+
+.wt-c[data-state="link"] { border-color: var(--accent); background: var(--accent-dim); }
+.wt-c[data-state="link"] svg polygon,
+.wt-c[data-state="link"] svg path { fill: #dce6ff; }
+
+.wt-c[data-state="ghost"] { opacity: .34; }
+
+.wt-i {
+  position: absolute;
+  top: -7px; left: -7px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  display: grid;
+  place-items: center;
+}
+
+.wt-link { display: block; color: var(--accent); margin-top: 2px; }
+.wt-link text { font-family: var(--mono); font-size: 11px; }
+
+.wt-verdict {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ---------- 도형 3종 나열 ---------- */
+.wt-legend { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.wt-l { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.wt-l-art {
+  width: 62px; height: 62px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+}
+.wt-l-art svg { width: 48%; height: 48%; }
+.wt-l-art svg polygon, .wt-l-art svg path { fill: var(--lit); }
+.wt-l span { font-size: 12.5px; color: var(--ink-dim); }
+
+/* ---------- 키 안내 ---------- */
+.wt-keys { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.wt-k {
+  padding: 10px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-align: center;
+  min-width: 116px;
+}
+.wt-k b { display: block; font-family: var(--mono); font-size: 15px; color: var(--ink); }
+.wt-k span { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 3px; }
+
+/* ---------- 타이머 시연 ---------- */
+.wt-timerdemo { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.wt-timernote {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ---------- 판 예시 ---------- */
+.wt-board { width: 100%; max-width: 300px; }
+.wt-board .board { border-width: 2px; }
+
 /* ---------- 반응형 ---------- */
 @media (max-width: 620px) {
   #stage { padding: 20px 16px 48px; }
@@ -650,4 +830,30 @@ kbd {
   .actions { justify-content: stretch; }
   .actions .btn { flex: 1 1 auto; }
   .task-progress { margin-left: 0; width: 100%; }
+}
+
+/* ============================================================
+   모션 축소 설정
+
+   타이머 막대와 확정 유예 막대는 장식이 아니라 "남은 시간"을 전달하는
+   정보이므로 끄지 않는다. 없애면 응시자가 마감을 알 수 없다.
+   대신 카드 뒤집기·확대 같은 장식성 모션만 제거한다.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .nb-flip { animation: none; }
+  .screen.active { animation: none; }
+
+  .block, .nb-key, .pick, .wt-dot, .pip {
+    transition: none;
+  }
+  .board.input-open .block:hover,
+  .pick:hover {
+    transform: none;
+  }
+  .block.lit, .block.tapped {
+    transform: translate(-50%, -50%);
+  }
+
+  /* 설명 화면의 타이머 시연은 무한 반복이라 정지시킨다 (본 검사는 유지) */
+  .wt-timerdemo .nb-timer-fill { animation: none; width: 62%; }
 }

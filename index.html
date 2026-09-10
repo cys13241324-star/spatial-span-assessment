@@ -67,19 +67,28 @@
     </div>
   </section>
 
-  <!-- ===== 2. 과제 설명 ===== -->
+  <!-- ===== 2. 과제 설명 (스텝별) ===== -->
   <section class="screen" id="screen-tutorial">
     <div class="card">
-      <p class="eyebrow">과제 설명</p>
-      <h1 id="briefTitle">진행 방식</h1>
-      <ol class="steps" id="briefSteps"></ol>
-      <div class="callout">
-        먼저 <strong>연습</strong>을 진행합니다. 연습은 채점에 반영되지 않으며 정답 여부를 알려드립니다.
-        본 시행에서는 정답 여부를 알려드리지 않습니다.
+      <div class="wt-head">
+        <p class="eyebrow" id="wtEyebrow">과제 설명</p>
+        <div class="wt-dots" id="wtDots"></div>
       </div>
-      <div class="actions">
-        <button class="btn ghost" data-goto="screen-consent">이전</button>
-        <button class="btn primary" id="btnToPractice">연습 시작</button>
+
+      <h1 id="wtTitle">진행 방식</h1>
+      <p class="wt-body" id="wtBody"></p>
+      <div class="wt-demo" id="wtDemo"></div>
+
+      <div class="callout" id="wtLast" hidden>
+        다음은 <strong>연습</strong>입니다. 연습은 채점에 반영되지 않으며 정답 여부를 알려드립니다.
+        본 시행에서는 알려드리지 않습니다.
+      </div>
+
+      <div class="actions wt-nav">
+        <button class="btn ghost" id="wtPrev">이전</button>
+        <span class="wt-count" id="wtCount"></span>
+        <button class="btn primary" id="wtNext">다음</button>
+        <button class="btn primary" id="btnToPractice" hidden>연습 시작</button>
       </div>
     </div>
   </section>

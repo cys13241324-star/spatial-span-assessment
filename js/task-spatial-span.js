@@ -467,6 +467,29 @@
   function ms(v) { return v == null ? '—' : v.toLocaleString() + ' ms'; }
   function seqStr(arr) { return arr.map(function (v) { return v + 1; }).join(' → '); }
 
+  /**
+   * 설명용 판 그림 — 실제 과제와 같은 배치·같은 도형을 쓴다.
+   * seq를 주면 그 순서로 표시한다. tapped면 입력된 모습(파랑+번호),
+   * 아니면 점등된 모습(노랑)으로 그린다.
+   */
+  function demoBoardHtml(seq, opts) {
+    opts = opts || {};
+    var order = {};
+    seq.forEach(function (id, i) { order[id] = i + 1; });
+
+    var cells = LAYOUT.map(function (pos, i) {
+      var on = order[i] != null;
+      var cls = 'block' + (on ? (opts.tapped ? ' tapped' : ' lit') : '');
+      var tag = (on && opts.tapped) ? '<span class="order-tag">' + order[i] + '</span>' : '';
+      return '<div class="' + cls + '" style="left:' + pos.x + '%;top:' + pos.y + '%">' +
+               SHAPES[i] + tag +
+             '</div>';
+    }).join('');
+
+    return '<div class="wt-board"><div class="board' +
+           (opts.tapped ? ' input-open' : '') + '">' + cells + '</div></div>';
+  }
+
   global.Tasks.register({
     id: 'spatial-span',
     label: '도형 순서 기억 (Corsi span)',
@@ -481,11 +504,41 @@
                 '수집합니다. <strong>영상·음성·생체정보는 수집하지 않습니다.</strong>'
     },
 
-    brief: [
-      { h: '관찰', p: '9개 도형 중 일부가 하나씩 차례로 점등됩니다. 순서를 기억하세요.' },
-      { h: '재현', p: '점등이 끝나면 테두리가 밝아집니다. 그때부터 <strong>점등된 순서대로</strong> 도형을 클릭하세요.' },
-      { h: '수정', p: '잘못 눌렀으면 <kbd>Backspace</kbd> 또는 취소 버튼으로 마지막 입력을 되돌릴 수 있습니다. 본 검사에서는 <strong>시행당 1회, 누른 직후 2초 안에만</strong> 가능합니다.' },
-      { h: '증가', p: '맞히면 순서가 한 칸 길어집니다. 한 단계에서 두 번 모두 틀리면 종료됩니다.' }
+    walkthrough: [
+      {
+        title: '도형 아홉 개가 흩어져 있습니다',
+        body: '일부러 격자로 두지 않았습니다. 나란히 놓으면 위치를 "왼쪽 위, 오른쪽 아래" 같은 ' +
+              '<strong>말로 바꿔서 외우게</strong> 되는데, 그러면 재려던 것과 다른 능력을 재게 됩니다.',
+        html: demoBoardHtml([])
+      },
+      {
+        title: '도형이 하나씩 차례로 켜집니다',
+        body: '한 번에 하나씩, 순서대로 밝아집니다. <strong>어떤 도형이 몇 번째로 켜졌는지</strong>를 ' +
+              '기억하세요. 아래는 세 개가 켜진 예시입니다.',
+        html: demoBoardHtml([4, 2, 7])
+      },
+      {
+        title: '켜진 순서대로 클릭합니다',
+        body: '점등이 끝나면 판 테두리가 밝아집니다. 그때부터 입력할 수 있습니다. ' +
+              '누른 도형에는 <strong>몇 번째로 눌렀는지</strong> 번호가 붙습니다.',
+        html: demoBoardHtml([4, 2, 7], { tapped: true })
+      },
+      {
+        title: '잘못 눌렀으면 되돌릴 수 있습니다',
+        body: '<kbd>Backspace</kbd> 또는 취소 버튼으로 마지막 입력을 지웁니다. 다만 본 검사에서는 ' +
+              '<strong>한 시행에 한 번, 누른 직후 2초 안에만</strong> 가능합니다. ' +
+              '손이 미끄러진 것은 되돌리되, 눌러 보면서 기억을 떠보는 것은 막기 위한 제한입니다.',
+        html: '<div class="wt-keys">' +
+                '<div class="wt-k"><b>Backspace</b><span>마지막 입력 취소</span></div>' +
+                '<div class="wt-k"><b>Enter</b><span>확정</span></div>' +
+              '</div>'
+      },
+      {
+        title: '맞히면 순서가 길어집니다',
+        body: '두 개에서 시작해 맞힐 때마다 한 칸씩 늘어납니다. 한 단계에서 <strong>두 번 모두 틀리면</strong> ' +
+              '검사가 끝납니다. 끝까지 못 갔다고 해서 잘못한 것이 아닙니다 — 어디까지 가는지가 곧 점수입니다.',
+        html: null
+      }
     ],
 
     readyNote: '연습과 달리 <strong>오입력 수정은 시행당 1회, 마지막 입력 후 2초 이내</strong>로 제한됩니다. ' +
