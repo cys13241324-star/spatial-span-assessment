@@ -42,6 +42,19 @@ function check(name, cond, extra) {
     check('모의 채점기가 등록됨 (devOnly)', Providers.list('scorer').some(p => p.id === 'mock' && p.devOnly && p.external === false));
   }
 
+  console.log('\n[1b] 픽스처 세션 채우기 — 녹화 없이 뒤쪽 화면으로');
+  {
+    const seeded = Fixtures.seedAnswers(Questions.SET, 1700000000000);
+    check('문항 수만큼 답변', seeded.length === Questions.SET.items.length);
+    check('미디어 없음이 답변마다 표시', seeded.every(a => a.media.skipped === 'seeded' && a.media.chunks === 0 && a.mediaRef === null));
+    check('전사가 픽스처에서 채워짐', seeded.every(a => a.transcript && a.transcript.provider === 'fixture'));
+    check('정정 이력은 빈 배열로 시작', seeded.every(a => Array.isArray(a.transcript.corrections) && a.transcript.corrections.length === 0));
+    check('행동 지표는 측정 없음(null)', seeded.every(a => a.behavioral.firstSpeechDelayMs === null && a.behavioral.spoke === null));
+    check('결정적 (같은 now → 같은 출력)', JSON.stringify(seeded) === JSON.stringify(Fixtures.seedAnswers(Questions.SET, 1700000000000)));
+    const sc = await MockScorer.score({ session: { names: Fixtures.names, answers: seeded }, rubric: Questions.RUBRIC, questions: Questions.SET });
+    check('채워진 세션이 그대로 채점됨', sc.status === 'scored_uncalibrated' && sc.perQuestion.filter(p => !p.excluded).length === 5);
+  }
+
   console.log('\n[2] 모의 채점기 — 결정성·범위·근거 오프셋');
   {
     const text = Transcript.mask(Fixtures.transcripts.q4.text, { names: Fixtures.names }).text;

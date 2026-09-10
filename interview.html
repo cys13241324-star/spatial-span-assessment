@@ -21,6 +21,13 @@
   </div>
 </header>
 
+<div class="test-banner" id="testBanner" hidden>
+  <strong>테스트 모드</strong> — 지원되지 않는 단계를 건너뛸 수 있습니다. 우회한 사실은 기록되며 이 세션은 평가 자료로 쓸 수 없습니다.
+  <span id="testFlags"></span>
+</div>
+
+<ol class="stepper" id="stepper" aria-label="진행 단계"></ol>
+
 <main id="stage">
 
   <!-- ===== 1. 사전고지 · 동의 ===== -->
@@ -65,6 +72,8 @@
 
       <div class="actions">
         <a class="btn ghost" href="index.html">전략게임으로</a>
+        <button class="btn ghost test-only" id="btnSeedFixture" hidden>녹화 없이 픽스처로 채우고 저장 확인으로</button>
+        <button class="btn ghost test-only" id="btnSkipConsent" hidden>동의 없이 건너뛰기</button>
         <button class="btn primary" id="btnToCheck" disabled>장비 점검으로</button>
       </div>
     </div>
@@ -88,6 +97,7 @@
         <button class="btn ghost" data-goto="screen-consent">이전</button>
         <button class="btn" id="btnAcquire">카메라·마이크 켜기</button>
         <button class="btn" id="btnAudioTest" disabled>말하기 테스트 (5초)</button>
+        <button class="btn ghost test-only" id="btnSkipCheck" hidden>장비 없이 계속 (녹화 생략)</button>
         <button class="btn primary" id="btnToPractice" disabled>연습으로</button>
       </div>
     </div>
@@ -118,6 +128,7 @@
       <div class="actions">
         <button class="btn primary" id="btnStartAnswer" hidden>지금 답변 시작</button>
         <button class="btn" id="btnStopAnswer" hidden>답변 마치기</button>
+        <button class="btn ghost test-only" id="btnSkipQuestion" hidden>이 문항 건너뛰기</button>
       </div>
 
       <div class="feedback info" id="qFeedback"></div>
@@ -147,6 +158,7 @@
       <video id="practicePlayback" class="iv-video iv-playback" controls playsinline></video>
       <div class="integrity" id="practiceMeta"></div>
       <div class="actions">
+        <button class="btn ghost test-only" id="btnSkipLive" hidden>본 면접 건너뛰고 픽스처로 채우기</button>
         <button class="btn primary" id="btnToLive">본 면접 시작 (6문항)</button>
       </div>
     </div>

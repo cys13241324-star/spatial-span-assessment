@@ -199,3 +199,32 @@
 .hs-ev .cite .rm { margin-left: auto; font-size: 11px; color: var(--ink-faint); cursor: pointer; background: none; border: 0; }
 .hs-note { width: 100%; font: inherit; font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
 .agree { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+
+/* ---------- 테스트 모드 띠 · 단계 표시줄 ---------- */
+.test-banner {
+  background: rgba(248,81,73,.12);
+  border-bottom: 1px solid rgba(248,81,73,.45);
+  color: var(--ink);
+  font-size: 13px;
+  padding: 8px 22px;
+}
+.test-banner strong { color: var(--err); }
+.test-banner #testFlags { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-left: 10px; }
+
+.stepper {
+  list-style: none; margin: 0; padding: 10px 22px 0;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  max-width: 1000px; margin-inline: auto;
+}
+.stepper li {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .03em;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--line-soft); color: var(--ink-faint);
+  background: var(--bg-soft);
+}
+.stepper li.done { color: var(--ink-dim); border-color: var(--line); }
+.stepper li.on { color: #0b1220; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.stepper li.jump { cursor: pointer; border-style: dashed; }
+.stepper li.jump:hover { border-color: var(--accent); color: var(--ink); }
+.stepper li.skipped { text-decoration: line-through; color: var(--err); }
+.btn.test-only { border-style: dashed; border-color: rgba(248,81,73,.5); color: var(--err); }

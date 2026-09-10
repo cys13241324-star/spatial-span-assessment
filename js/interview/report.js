@@ -36,6 +36,14 @@
     html += '<p class="eyebrow">검토자 화면</p>';
     html += '<h1>영상면접 · 기록</h1>';
 
+    /* 테스트 모드·우회 기록은 맨 위에. 아래 어떤 숫자도 평가 자료가 아니다 */
+    if (s.testMode || (s.bypasses && s.bypasses.length)) {
+      html += '<div class="callout err"><strong>테스트 모드 기록 — 평가 자료로 사용할 수 없습니다.</strong> ' +
+        (s.bypasses && s.bypasses.length
+          ? '우회 ' + s.bypasses.length + '건: ' + s.bypasses.map(function (b) { return esc(b.gate) + ' (' + esc(b.reason) + ')'; }).join(', ')
+          : '우회 없음') + '</div>';
+    }
+
     html += '<div class="score-row">';
     if (sc.status === 'pending') {
       html += '<div class="score-tile blocked"><div class="label">자동 점수</div><div class="value">보류</div><div class="hint">' + esc(sc.reason || '채점기 미연결') + '</div></div>';

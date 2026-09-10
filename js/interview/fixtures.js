@@ -55,5 +55,36 @@
   /* 검토자 화면·리포트 검증용 — 응시자 이름 (마스킹 대상) */
   Fixtures.names = ['김민서'];
 
+  /**
+   * 녹화 없이 세션을 채운다 — 테스트 모드에서 뒤쪽 화면(저장 확인·전사·채점·검토)으로
+   * 바로 가기 위한 것. 미디어는 없고 그 사실이 답변마다 남는다.
+   */
+  Fixtures.seedAnswers = function (qset, now) {
+    now = now || Date.now();
+    return qset.items.map(function (q, i) {
+      var t = Fixtures.transcripts[q.id];
+      return {
+        questionId: q.id,
+        questionType: q.type,
+        phase: 'live',
+        prepMs: 12000 + i * 1000,
+        prepEnded: 'started_early',
+        answerMs: 48000 + i * 1500,
+        answerEnded: 'elapsed',
+        questionSpoken: false,
+        mediaRef: null,
+        media: { chunks: 0, bytes: 0, mime: null, complete: false, gaps: [], failed: [], skipped: 'seeded' },
+        transcript: t ? {
+          raw: t.text, corrected: null, words: t.words,
+          meanConfidence: t.meanConfidence, lowConfidenceRatio: t.lowConfidenceRatio,
+          provider: 'fixture', corrections: []
+        } : null,
+        behavioral: { firstSpeechDelayMs: null, speechDurationMs: null, silenceRatio: null, frames: 0, spoke: null,
+                      wordCount: t ? t.words.length : null, wordsPerMin: null },
+        tsClient: now - (qset.items.length - i) * 60000
+      };
+    });
+  };
+
   global.Fixtures = Fixtures;
 })(typeof window !== 'undefined' ? window : global);
