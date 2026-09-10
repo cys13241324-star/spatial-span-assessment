@@ -3,3 +3,5 @@ node_modules/
 summary-*.txt
 .DS_Store
 Thumbs.db
+*.sqlite
+*.sqlite-journal

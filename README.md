@@ -17,7 +17,7 @@
 npm test
 ```
 
-Node만 필요하다. **360개 검사 + 배선 대조 47항목** — 로직 43 · Corsi 50 · N-back 132 · 영상면접 77 · 모의채점 37 · 편향 회귀 21.
+Node 24+ (내장 `node:sqlite`). **419개 검사 + 배선 대조 47항목** — 로직 43 · Corsi 50 · N-back 132 · 영상면접 77 · 모의채점 37 · 편향 회귀 21 · 채점 DB 59.
 
 ---
 
@@ -111,6 +111,28 @@ Corsi Block-Tapping Test. 9개 도형 중 일부가 순차 점등되고 같은 �
 ### 서버 채점 — `server/`
 
 `server/score-claude.mjs`가 세션 JSON을 받아 마스킹 → 근거 인용(Citations) → 점수(구조화 출력) 순으로 처리한다. `--dry-run`이면 키 없이 요청 본문만 출력한다. 영상·음성은 보내지 않는다. 자세한 건 `server/README.md`.
+
+## 채점 DB — `db/`
+
+자동 채점기를 교정하고 타당도를 검증하려면 **사람이 루브릭으로 채점한 표본**이 필요하다. 공개된 것은 없다. 대신 [AI Hub 채용면접 인터뷰 데이터](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&dataSetSn=71592)(한국어 실제 답변 8만 건, 영리 R&D 가능·재배포 불가)가 답변을 주므로 **점수만 붙이면 된다.**
+
+| 파일 | 역할 |
+|---|---|
+| `db/schema.sql` | SQLite. 세션·답변·전사·자동채점(run 단위, 덮어쓰지 않음)·사람채점(평가자별)·근거·대기열·규준·감사 |
+| `db/load-session.mjs` | 브라우저 세션 JSON(+ `server/` 점수) → DB |
+| `db/import-aihub.mjs` | AI Hub JSON → 세션 + 채점 대기열. `--inspect`로 실제 키를 본 뒤 `--map`으로 맞춘다 |
+| `db/agreement.mjs` | 가중 κ · 정확/±1 · 선형 교정 계수 (순수 함수) |
+| `db/report.mjs` | 현황 · 평가자 간 일치도(특성별) · 자동 vs 사람 · 교정 계수 |
+| `docs/rater-protocol.md` | 평가자 훈련·채점·불일치 처리·κ 기준 |
+
+```bash
+node db/load-session.mjs scores.sqlite session.json --score score.json
+node db/import-aihub.mjs --inspect ./aihub/            # 키 구조 확인
+node db/import-aihub.mjs scores.sqlite ./aihub/ --per-type 60
+node db/report.mjs scores.sqlite
+```
+
+의존성 없음 — Node 내장 `node:sqlite`. 원칙: 자동 점수는 run으로 쌓고, 사람 점수는 평가자별로 남기며(평균만 저장하면 κ를 못 낸다), 테스트 모드·우회 세션은 `v_eligible_answers`에서 자동 제외된다. 감정 라벨은 채점 테이블에 넣지 않고 감사 메타로만 남긴다.
 
 ## 채점
 
@@ -213,7 +235,7 @@ Trial 로그 스키마:
 
 ## 검증 상태
 
-`npm test` — 360개 통과 + 배선 대조 47항목.
+`npm test` — 419개 통과 + 배선 대조 47항목.
 
 커버 범위: 시드 재현성·비복원 추출, 채점 경계값, 규준 게이트, 로거 스키마, 무결성 구간 필터,
 Corsi 계단 절차 시뮬레이션 2,000회, 취소 횟수·창 만료·확정 유예·마지막 입력 복구, 무응답 상한,
