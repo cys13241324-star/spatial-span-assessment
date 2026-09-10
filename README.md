@@ -1,5 +1,7 @@
 # 도형 순서 기억 — 역량검사 프로토타입
 
+**라이브 데모: https://cys13241324-star.github.io/spatial-span-assessment/**
+
 Corsi Block-Tapping Test 기반 시공간 작업기억 측정 도구. 게임 1종을 만든 것이 아니라, **여러 인지과제가 올라갈 측정 파이프라인을 1종으로 관통시킨 것**이다.
 
 ## 실행
