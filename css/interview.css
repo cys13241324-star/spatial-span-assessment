@@ -1,0 +1,171 @@
+/* ============================================================
+   영상면접 — app.css 위에 얹는 추가 스타일
+   ============================================================ */
+.iv-wrap { max-width: 720px; }
+
+/* ---------- 영상 무대 ---------- */
+.iv-stage {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 2px solid var(--line-soft);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.iv-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  object-fit: cover;
+  transform: scaleX(-1);          /* 거울 모드 — 응시자는 이쪽이 자연스럽다 */
+}
+.iv-video.iv-playback { transform: none; max-width: 640px; margin: 14px auto; border-radius: 12px; }
+
+.iv-rec {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+}
+.iv-rec .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); animation: ivblink 1s steps(2) infinite; }
+@keyframes ivblink { to { opacity: .25; } }
+
+/* 음량 미터 — 영상 하단에 붙는다. 말하는 동안 채워진다 */
+.iv-meter {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 6px;
+  background: rgba(0,0,0,.45);
+}
+.iv-meter-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--ok), var(--lit));
+  transition: transform .06s linear;
+}
+.iv-meter-fill.speaking { background: linear-gradient(90deg, var(--accent), var(--lit)); }
+
+/* ---------- 질문 ---------- */
+.iv-q {
+  font-size: 19px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -.01em;
+  margin: 0 0 16px;
+  min-height: 3.1em;
+  text-wrap: balance;
+}
+
+/* ---------- 타이머 ---------- */
+.iv-timer { margin: 16px 0 4px; }
+.iv-timer-label {
+  display: flex; justify-content: space-between;
+  font-size: 12.5px; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+.iv-timer-label #timerLeft { color: var(--ink); font-weight: 600; font-family: var(--mono); }
+.iv-timer .nb-timer { max-width: none; }
+.iv-timer .nb-timer-fill.prep { background: linear-gradient(90deg, var(--ink-faint), var(--accent)); }
+
+/* ---------- 장비 점검 ---------- */
+.check-list { display: grid; gap: 8px; margin: 16px 0 4px; }
+.check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+}
+.check-item .st {
+  flex: none;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+}
+.check-item .st.ok  { color: var(--ok);  border-color: rgba(63,185,80,.4);  background: rgba(63,185,80,.1); }
+.check-item .st.err { color: var(--err); border-color: rgba(248,81,73,.4);  background: rgba(248,81,73,.1); }
+.check-item .st.wait{ color: var(--warn); border-color: rgba(210,153,34,.4); background: rgba(210,153,34,.1); }
+.check-item .d { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-left: auto; }
+
+/* ---------- 공급자 패널 ---------- */
+.providers {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;
+  margin: 4px 0 18px;
+}
+.prov {
+  padding: 10px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  font-size: 12.5px;
+}
+.prov .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+.prov .v { display: block; color: var(--ink); font-weight: 600; margin-top: 2px; }
+.prov .x { display: block; font-size: 11.5px; margin-top: 3px; color: var(--ink-faint); }
+.prov.external { border-color: rgba(248,81,73,.45); background: rgba(248,81,73,.06); }
+.prov.external .x { color: var(--err); font-weight: 600; }
+
+/* ---------- 전사 정정 ---------- */
+.tr-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.tr-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.tr-head .q { font-weight: 600; color: var(--ink); }
+.tr-head .m { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); margin-left: auto; }
+.tr-raw {
+  font-size: 13px; color: var(--ink-faint);
+  padding: 8px 10px; border-left: 2px solid var(--line);
+  margin: 8px 0; white-space: pre-wrap; word-break: break-word;
+}
+.tr-edit {
+  width: 100%;
+  min-height: 92px;
+  font: inherit; font-size: 14px; line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.tr-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tr-edit:disabled { opacity: .6; }
+.tr-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.tr-foot .note { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.tr-foot .note.err { color: var(--err); }
+.tr-foot .note.ok { color: var(--ok); }
+.tr-empty { font-size: 13px; color: var(--ink-faint); font-style: italic; }
+.tr-low { color: var(--warn); }
+
+/* ---------- 리포트 인용 ---------- */
+.cite { border-left: 3px solid var(--accent); padding: 6px 12px; margin: 6px 0; font-size: 13px; color: var(--ink-dim); background: rgba(91,140,255,.06); border-radius: 0 8px 8px 0; }
+.cite b { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 620px) {
+  .iv-q { font-size: 17px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-rec .dot { animation: none; }
+  .iv-meter-fill { transition: none; }
+}

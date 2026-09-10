@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>영상면접 프로토타입</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/interview.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <span class="brand-name">영상면접 <em>프로토타입</em></span>
+  </div>
+  <div class="topbar-meta">
+    <span id="stepLabel">사전고지</span>
+    <span class="sep">·</span>
+    <span id="sessionLabel">—</span>
+  </div>
+</header>
+
+<main id="stage">
+
+  <!-- ===== 1. 사전고지 · 동의 ===== -->
+  <section class="screen active" id="screen-consent">
+    <div class="card">
+      <p class="eyebrow">응시 전 고지</p>
+      <h1>녹화됩니다. 무엇이 분석되고 무엇이 분석되지 않는지 먼저 알려드립니다</h1>
+
+      <div class="notice-grid">
+        <div class="notice">
+          <h3>수집하는 것</h3>
+          <p>질문에 답하는 <strong>영상과 음성</strong>, 음성을 글로 옮긴 <strong>전사</strong>, 응답 시작까지의 시간·발화 길이 같은 <strong>행동 지표</strong>, 기기·브라우저 정보.</p>
+        </div>
+        <div class="notice">
+          <h3>자동으로 평가하는 것</h3>
+          <p><strong>말한 내용만</strong> 평가합니다 — 경험이 구체적인지, 직무와 관련 있는지, 구조가 갖춰졌는지. 점수마다 <strong>어느 발언에서 나왔는지</strong>를 함께 제시합니다.</p>
+        </div>
+        <div class="notice">
+          <h3>분석하지 않는 것</h3>
+          <p><strong>표정, 시선, 목소리 톤으로 감정이나 성격을 추론하지 않습니다.</strong> 얼굴 인식도 하지 않습니다. 영상은 사람이 확인할 근거 자료로만 보관됩니다.</p>
+        </div>
+        <div class="notice">
+          <h3>귀하의 권리</h3>
+          <p>전사 결과를 직접 확인하고 오인식을 <strong>정정</strong>할 수 있습니다. 자동 평가 결과에 대해 <strong>설명을 요구</strong>하고 <strong>사람의 재검토</strong>와 <strong>삭제</strong>를 요청할 수 있습니다. (개인정보보호법 §37조의2)</p>
+        </div>
+      </div>
+
+      <div class="providers" id="providerPanel"></div>
+
+      <div class="callout warn">
+        <strong>프로토타입 고지</strong> — 이 빌드는 채점기가 연결되어 있지 않아 자동 점수를 산출하지 않습니다. 녹화·전사·정정·기록 절차만 동작합니다. 선발 판단 근거로 사용할 수 없습니다.
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="agreeRecord">
+        <span>영상·음성 녹화와 위 범위의 처리에 동의합니다.</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="agreeRetention">
+        <span>보관기간(영상 <span id="retMedia">—</span>일 · 전사 <span id="retTranscript">—</span>일)과 그 후 자동 파기에 동의합니다.</span>
+      </label>
+
+      <div class="actions">
+        <a class="btn ghost" href="index.html">전략게임으로</a>
+        <button class="btn primary" id="btnToCheck" disabled>장비 점검으로</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 2. 장비 점검 ===== -->
+  <section class="screen" id="screen-check">
+    <div class="card">
+      <p class="eyebrow">장비 점검</p>
+      <h1>카메라와 마이크가 실제로 동작하는지 확인합니다</h1>
+      <p>권한이 있는 것과 소리가 들어오는 것은 다릅니다. 아래에서 <strong>몇 초간 말씀해 주세요.</strong> 음량 막대가 움직여야 통과합니다.</p>
+
+      <div class="iv-stage">
+        <video id="checkVideo" class="iv-video" autoplay muted playsinline></video>
+        <div class="iv-meter"><span class="iv-meter-fill" id="checkMeter"></span></div>
+      </div>
+
+      <div class="check-list" id="checkList"></div>
+
+      <div class="actions">
+        <button class="btn ghost" data-goto="screen-consent">이전</button>
+        <button class="btn" id="btnAcquire">카메라·마이크 켜기</button>
+        <button class="btn" id="btnAudioTest" disabled>말하기 테스트 (5초)</button>
+        <button class="btn primary" id="btnToPractice" disabled>연습으로</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3~6. 문항 진행 (연습 · 본 면접 공용) ===== -->
+  <section class="screen" id="screen-question">
+    <div class="task-wrap iv-wrap">
+      <div class="task-head">
+        <div class="phase-badge" id="phaseBadge">연습</div>
+        <div class="task-status" id="qStatus">준비 중…</div>
+        <div class="task-progress"><span id="qProgress">—</span></div>
+      </div>
+
+      <div class="iv-q" id="qText"></div>
+
+      <div class="iv-stage">
+        <video id="liveVideo" class="iv-video" autoplay muted playsinline></video>
+        <div class="iv-rec" id="recBadge" hidden><span class="dot"></span> 녹화 중</div>
+        <div class="iv-meter"><span class="iv-meter-fill" id="liveMeter"></span></div>
+      </div>
+
+      <div class="iv-timer">
+        <div class="iv-timer-label"><span id="timerLabel">준비 시간</span><span id="timerLeft">—</span></div>
+        <div class="nb-timer"><span class="nb-timer-fill" id="timerFill"></span></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnStartAnswer" hidden>지금 답변 시작</button>
+        <button class="btn" id="btnStopAnswer" hidden>답변 마치기</button>
+      </div>
+
+      <div class="feedback info" id="qFeedback"></div>
+    </div>
+  </section>
+
+  <!-- ===== 연습 종료 ===== -->
+  <section class="screen" id="screen-practice-done">
+    <div class="card">
+      <p class="eyebrow">연습 종료</p>
+      <h1>녹화된 모습을 확인하세요</h1>
+      <p>연습은 채점되지 않습니다. 본 면접에서는 <strong>다시 찍을 수 없고</strong> 시간이 끝나면 자동으로 다음 문항으로 넘어갑니다.</p>
+      <video id="practicePlayback" class="iv-video iv-playback" controls playsinline></video>
+      <div class="integrity" id="practiceMeta"></div>
+      <div class="actions">
+        <button class="btn primary" id="btnToLive">본 면접 시작 (6문항)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 7. 업로드 확인 ===== -->
+  <section class="screen" id="screen-upload">
+    <div class="card">
+      <p class="eyebrow">저장 확인</p>
+      <h1>답변이 저장되었는지 확인합니다</h1>
+      <div class="table-scroll"><table id="uploadTable"></table></div>
+      <div class="callout warn" id="uploadWarn" hidden></div>
+      <div class="actions">
+        <button class="btn primary" id="btnToTranscript">전사 확인으로</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 8. 전사 확인 · 정정 ===== -->
+  <section class="screen" id="screen-transcript">
+    <div class="card wide">
+      <p class="eyebrow">전사 확인</p>
+      <h1>음성을 글로 옮긴 결과입니다. 잘못 옮겨진 부분이 있으면 고쳐 주세요</h1>
+      <div class="callout">
+        오인식된 <strong>단어를 바로잡는 용도</strong>입니다. 답변 내용 자체를 바꾸는 큰 수정은 허용되지 않으며, 모든 수정은 원문과 함께 기록됩니다.
+        문항당 <strong>3회</strong>, 원문 길이의 <strong>15%</strong>(최소 20자)까지 고칠 수 있습니다.
+      </div>
+      <div id="transcriptList"></div>
+      <div class="actions">
+        <button class="btn primary" id="btnSubmit">제출</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 9. 제출 완료 ===== -->
+  <section class="screen" id="screen-done">
+    <div class="card">
+      <p class="eyebrow">제출 완료</p>
+      <h1>접수되었습니다</h1>
+      <div class="table-scroll"><table id="doneTable"></table></div>
+      <div class="actions">
+        <button class="btn ghost" id="btnErase">내 데이터 삭제 요청</button>
+        <button class="btn ghost" id="btnDownload">기록 JSON 내려받기</button>
+        <button class="btn primary" id="btnReport">기록 보기 (검토자 화면)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 검토자 리포트 / 설명 ===== -->
+  <section class="screen" id="screen-report"><div class="card wide" id="reportBody"></div></section>
+  <section class="screen" id="screen-explain"><div class="card wide" id="explainBody"></div></section>
+
+</main>
+
+<script src="js/core.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/interview/providers.js"></script>
+<script src="js/interview/transcript.js"></script>
+<script src="js/interview/questions.js"></script>
+<script src="js/interview/store.js"></script>
+<script src="js/interview/recorder.js"></script>
+<script src="js/interview/report.js"></script>
+<script src="js/interview/app.js"></script>
+</body>
+</html>
